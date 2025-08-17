@@ -1,0 +1,14 @@
+{
+  "name": "숙소예약 추첨 시스템",
+  "short_name": "숙소예약",
+  "description": "회사 임직원을 위한 숙소 예약 신청 및 추첨 시스템",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0070f3",
+  "orientation": "portrait",
+  "icons": [],
+  "categories": ["business", "productivity"],
+  "lang": "ko-KR",
+  "dir": "ltr"
+}

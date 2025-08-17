@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 숙소예약 추첨 시스템
 
-## Getting Started
+회사 임직원을 위한 숙소 예약 신청 및 추첨 시스템입니다.
 
-First, run the development server:
+## 🚀 주요 기능
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- 📊 **관리자 기능**
+  - 임직원 정보 엑셀 업로드
+  - 숙소 정보 관리
+  - 예약 기간 설정 및 구글폼 생성
+  - 추첨 실행 및 당첨자 관리
+
+- 👥 **직원 기능**
+  - 구글폼을 통한 숙소 신청
+  - 신청 현황 조회
+  - 당첨 결과 이메일 수신
+
+## 🛠️ 기술 스택
+
+- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS
+- **Backend**: Supabase (PostgreSQL, Auth, Realtime)
+- **외부 API**: Google Forms, Google Sheets, Gmail
+- **배포**: Render.com
+- **기타**: PWA 지원, 반응형 디자인
+
+## 📋 환경 설정
+
+1. `.env.local` 파일을 생성하고 다음 환경변수를 설정하세요:
+
+```env
+# Supabase 설정
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+
+# Google API 설정
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback
+
+# Gmail API
+GMAIL_REFRESH_TOKEN=your-gmail-refresh-token
+
+# 앱 설정
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_NAME=숙소예약 추첨 시스템
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🔧 설치 및 실행
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# 의존성 설치
+npm install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 개발 서버 실행
+npm run dev
 
-## Learn More
+# 빌드
+npm run build
 
-To learn more about Next.js, take a look at the following resources:
+# 프로덕션 실행
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📁 프로젝트 구조
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+booking/
+├── src/
+│   ├── app/              # Next.js App Router
+│   ├── components/       # React 컴포넌트
+│   ├── lib/             # 유틸리티 함수 및 설정
+│   ├── hooks/           # Custom React Hooks
+│   ├── store/           # Zustand 상태 관리
+│   └── types/           # TypeScript 타입 정의
+├── public/              # 정적 파일
+├── supabase/           # Supabase 마이그레이션 및 설정
+└── tests/              # 테스트 파일
+```
 
-## Deploy on Vercel
+## 🔐 보안 고려사항
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- 모든 개인정보는 암호화하여 저장
+- Row Level Security (RLS)를 통한 데이터 접근 제어
+- JWT 토큰 기반 인증
+- 감사 로그 기록
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📱 PWA 지원
+
+이 애플리케이션은 Progressive Web App으로 설치하여 사용할 수 있습니다.
+- 오프라인 지원 (읽기 전용)
+- 푸시 알림
+- 홈 화면에 추가
+
+## 👨‍💻 개발자 가이드
+
+자세한 개발 가이드는 [DEVELOPMENT.md](./DEVELOPMENT.md)를 참조하세요.
