@@ -14,7 +14,16 @@ import { ko } from 'date-fns/locale'
  */
 export function formatDate(date: Date | string, formatStr = 'yyyy년 MM월 dd일'): string {
   const dateObj = typeof date === 'string' ? parseISO(date) : date
-  return format(dateObj, formatStr, { locale: ko })
+  // 사람이 읽기 쉬운 별칭 지원
+  const resolvedFormat =
+    formatStr === 'datetime'
+      ? 'yyyy년 MM월 dd일 HH:mm'
+      : formatStr === 'date'
+        ? 'yyyy년 MM월 dd일'
+        : formatStr === 'time'
+          ? 'HH:mm'
+          : formatStr
+  return format(dateObj, resolvedFormat, { locale: ko })
 }
 
 /**

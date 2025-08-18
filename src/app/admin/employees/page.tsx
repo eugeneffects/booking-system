@@ -10,12 +10,16 @@ import { EmployeeList } from '@/components/admin/EmployeeList'
 import { EmployeeExcelUpload } from '@/components/admin/EmployeeExcelUpload'
 import { EmployeeForm } from '@/components/admin/EmployeeForm'
 import { Card } from '@/components/ui/Card'
-import { Upload, Users, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Upload, Users, Plus, Home } from 'lucide-react'
+import Link from 'next/link'
+import { useRequireAdmin } from '@/hooks/useAuth'
 import type { Employee, EmployeeImportResult } from '@/types/employee'
 
 type ViewMode = 'list' | 'upload' | 'form'
 
 export default function EmployeesPage() {
+  const { user, isLoading } = useRequireAdmin()
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
@@ -48,14 +52,40 @@ export default function EmployeesPage() {
     setSelectedEmployee(null)
   }
 
+  // 로딩 중이거나 인증 확인 중인 경우
+  if (isLoading) {
+    return (
+      <MainLayout user={null}>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600">인증 확인 중...</p>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
   return (
-    <MainLayout user={null}>
+    <MainLayout user={user}>
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-8">
           {/* 헤더 */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">임직원 관리</h1>
-            <p className="text-gray-600">임직원 정보를 등록하고 관리합니다.</p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">임직원 관리</h1>
+                <p className="text-gray-600">임직원 정보를 등록하고 관리합니다.</p>
+              </div>
+              
+              {/* 대시보드로 돌아가기 버튼 */}
+              <Link href="/admin/dashboard">
+                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                  <Home className="h-4 w-4" />
+                  대시보드
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* 탭 네비게이션 */}

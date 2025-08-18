@@ -12,12 +12,15 @@ import { ReservationPeriodList } from '@/components/admin/ReservationPeriodList'
 import { ReservationPeriodForm } from '@/components/admin/ReservationPeriodForm'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Building, ArrowLeft } from 'lucide-react'
+import { Building, ArrowLeft, Home } from 'lucide-react'
+import Link from 'next/link'
+import { useRequireAdmin } from '@/hooks/useAuth'
 import type { Accommodation, ReservationPeriod } from '@/types/accommodation'
 
 type ViewMode = 'list' | 'form' | 'periods' | 'period-form'
 
 export default function AccommodationsPage() {
+  const { user, isLoading } = useRequireAdmin()
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null)
   const [selectedPeriod, setSelectedPeriod] = useState<ReservationPeriod | null>(null)
@@ -77,31 +80,56 @@ export default function AccommodationsPage() {
     setSelectedPeriod(null)
   }
 
+  // 로딩 중이거나 인증 확인 중인 경우
+  if (isLoading) {
+    return (
+      <MainLayout user={null}>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600">인증 확인 중...</p>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
   return (
-    <MainLayout user={null}>
+    <MainLayout user={user}>
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-8">
           {/* 헤더 */}
           <div className="mb-8">
-            <div className="flex items-center gap-4 mb-2">
-              {viewMode !== 'list' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={goBackToList}
-                  className="flex items-center gap-1"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  목록으로
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                {viewMode !== 'list' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={goBackToList}
+                    className="flex items-center gap-1"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    목록으로
+                  </Button>
+                )}
+                                <h1 className="text-2xl font-bold text-gray-900">
+                  {viewMode === 'list' && '숙소 관리'}
+                  {viewMode === 'form' && (selectedAccommodation ? '숙소 정보 수정' : '새 숙소 등록')}
+                  {viewMode === 'periods' && `${selectedAccommodation?.name} 날짜 슬롯 관리`}
+                  {viewMode === 'period-form' && (selectedPeriod ? '날짜 슬롯 수정' : '새 날짜 슬롯 등록')}
+                </h1>
+              </div>
+              
+              {/* 대시보드로 돌아가기 버튼 */}
+              <Link href="/admin/dashboard">
+                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                  <Home className="h-4 w-4" />
+                  대시보드
                 </Button>
-              )}
-              <h1 className="text-2xl font-bold text-gray-900">
-                {viewMode === 'list' && '숙소 관리'}
-                {viewMode === 'form' && (selectedAccommodation ? '숙소 정보 수정' : '새 숙소 등록')}
-                {viewMode === 'periods' && `${selectedAccommodation?.name} 날짜 슬롯 관리`}
-                {viewMode === 'period-form' && (selectedPeriod ? '날짜 슬롯 수정' : '새 날짜 슬롯 등록')}
-              </h1>
+              </Link>
             </div>
+            
             <p className="text-gray-600">
               {viewMode === 'list' && '1단계: 회사 보유 숙소를 등록하고 관리합니다.'}
               {viewMode === 'form' && '숙소의 기본 정보를 입력합니다.'}

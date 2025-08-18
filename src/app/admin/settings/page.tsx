@@ -12,7 +12,9 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Alert } from '@/components/ui/Alert'
 import { sendTestEmail } from '@/lib/actions/email'
-import { Mail, Settings, Send, CheckCircle, XCircle } from 'lucide-react'
+import { Mail, Settings, Send, CheckCircle, XCircle, Home } from 'lucide-react'
+import Link from 'next/link'
+import { useRequireAdmin } from '@/hooks/useAuth'
 
 // 이메일 설정 상태 컴포넌트를 동적으로 로드
 const EmailStatusDisplay = dynamic(() => Promise.resolve(EmailStatusComponent), {
@@ -119,6 +121,7 @@ function EmailStatusComponent() {
 }
 
 export default function SettingsPage() {
+  const { user, isLoading } = useRequireAdmin()
   const [testEmail, setTestEmail] = useState('')
   const [isTestingSend, setIsTestingSend] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
@@ -158,17 +161,43 @@ export default function SettingsPage() {
     }
   }
 
+  // 로딩 중이거나 인증 확인 중인 경우
+  if (isLoading) {
+    return (
+      <MainLayout user={null}>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600">인증 확인 중...</p>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
   return (
-    <MainLayout user={null}>
+    <MainLayout user={user}>
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 py-8">
           {/* 헤더 */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-              <Settings className="h-6 w-6" />
-              시스템 설정
-            </h1>
-            <p className="text-gray-600">시스템 설정을 관리하고 기능을 테스트할 수 있습니다.</p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <Settings className="h-6 w-6" />
+                  시스템 설정
+                </h1>
+                <p className="text-gray-600">시스템 설정을 관리하고 기능을 테스트할 수 있습니다.</p>
+              </div>
+              
+              {/* 대시보드로 돌아가기 버튼 */}
+              <Link href="/admin/dashboard">
+                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                  <Home className="h-4 w-4" />
+                  대시보드
+                </Button>
+              </Link>
+            </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">

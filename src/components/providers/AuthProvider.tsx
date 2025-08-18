@@ -1,11 +1,11 @@
 /**
  * 인증 Provider 컴포넌트
- * 앱 전체에서 인증 상태를 관리합니다.
+ * 앱 전체에서 인증 상태를 초기화합니다.
  */
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 
 interface AuthProviderProps {
@@ -13,27 +13,13 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [isMounted, setIsMounted] = useState(false)
-  
   // useAuth 훅을 호출하여 인증 상태 초기화
-  const { isLoading, user, isAuthenticated } = useAuth()
-
-  // 클라이언트 사이드 마운트 확인
+  const { isInitialized } = useAuth()
+  
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    console.log('🔒 AuthProvider 마운트됨, 초기화 상태:', isInitialized)
+  }, [isInitialized])
 
-  // 서버 사이드에서는 children만 렌더링
-  if (!isMounted) {
-    return <>{children}</>
-  }
-
-  console.log('🔒 AuthProvider 렌더링:', { 
-    isLoading, 
-    hasUser: !!user, 
-    isAuthenticated,
-    userName: user?.name 
-  })
-
+  // 항상 children을 렌더링 (로딩 화면은 각 페이지에서 처리)
   return <>{children}</>
 }

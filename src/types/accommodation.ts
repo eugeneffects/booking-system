@@ -9,6 +9,7 @@ export interface Accommodation {
   restriction_years: number
   description: string | null
   is_active: boolean
+  image_urls?: string[]
   created_at: string
   updated_at: string
 }
@@ -19,6 +20,7 @@ export interface CreateAccommodationData {
   restriction_years: number
   description?: string
   is_active?: boolean
+  image_urls?: string[]
 }
 
 export interface UpdateAccommodationData {
@@ -27,6 +29,7 @@ export interface UpdateAccommodationData {
   restriction_years?: number
   description?: string
   is_active?: boolean
+  image_urls?: string[]
 }
 
 export interface ReservationPeriod {
@@ -39,6 +42,7 @@ export interface ReservationPeriod {
   application_end: string
   available_rooms: number
   is_active: boolean
+  is_open: boolean
   created_at: string
   updated_at: string
   // 조인 데이터

@@ -205,12 +205,16 @@ export async function createApplication(data: CreateApplicationData): Promise<Ap
 
     // 당첨 이력 확인 (제한 기간 내) - 안전하게 처리
     try {
-      const hasRecentWin = await supabase.rpc('check_winner_history', {
+      const { data: hasRecentWin, error: winnerHistoryError } = await supabase.rpc('check_winner_history', {
         p_employee_id: data.employee_id,
         p_accommodation_id: period.accommodation_id
       })
 
       console.log('🏆 당첨 이력 확인 결과:', { hasRecentWin, employeeId: data.employee_id })
+
+      if (winnerHistoryError) {
+        console.warn('check_winner_history RPC 실패, 이력 없음으로 처리:', winnerHistoryError.message)
+      }
 
       if (hasRecentWin) {
         const restrictionYears = period.accommodations?.restriction_years || 1
@@ -291,7 +295,7 @@ export async function updateApplication(id: string, data: UpdateApplicationData)
     }
 
     // 신청 마감 후에는 수정 불가
-    if (new Date() > new Date(currentApp.reservation_periods.application_end)) {
+    if (new Date() > new Date(currentApp.reservation_periods[0].application_end)) {
       throw new Error('신청 기간이 종료되어 수정할 수 없습니다.')
     }
 
@@ -354,7 +358,7 @@ export async function cancelApplication(id: string): Promise<void> {
     }
 
     // 신청 마감 후에는 취소 불가
-    if (new Date() > new Date(currentApp.reservation_periods.application_end)) {
+    if (new Date() > new Date(currentApp.reservation_periods[0].application_end)) {
       throw new Error('신청 기간이 종료되어 취소할 수 없습니다.')
     }
 

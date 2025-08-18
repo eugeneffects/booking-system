@@ -37,10 +37,7 @@ export async function runLottery(data: CreateLotteryData): Promise<LotteryResult
     // 신청자 목록 조회 (pending 상태만)
     const { data: applications, error: appsError } = await supabase
       .from('applications')
-      .select(`
-        *,
-        employees (*)
-      `)
+      .select('*')
       .eq('reservation_period_id', reservation_period_id)
       .eq('status', 'pending')
 
@@ -67,15 +64,24 @@ export async function runLottery(data: CreateLotteryData): Promise<LotteryResult
     const ineligibleApplications = []
 
     for (const app of applications) {
-      // 당첨 이력 확인
-      const hasRecentWin = await supabase.rpc('check_winner_history', {
-        p_employee_id: app.employee_id,
-        p_accommodation_id: period.accommodation_id
-      })
+      // 당첨 이력 확인 (RPC 반환값의 data를 사용해야 함)
+      try {
+        const { data: hasRecentWin, error: winnerHistoryError } = await supabase.rpc('check_winner_history', {
+          p_employee_id: app.employee_id,
+          p_accommodation_id: period.accommodation_id
+        })
 
-      if (hasRecentWin) {
-        ineligibleApplications.push(app)
-      } else {
+        if (winnerHistoryError) {
+          console.warn('check_winner_history RPC 실패, 이력 없음으로 처리:', winnerHistoryError.message)
+        }
+
+        if (hasRecentWin) {
+          ineligibleApplications.push(app)
+        } else {
+          eligibleApplications.push(app)
+        }
+      } catch (error) {
+        console.warn('check_winner_history RPC 호출 중 오류, 이력 없음으로 처리:', error)
         eligibleApplications.push(app)
       }
     }
@@ -169,14 +175,8 @@ export async function runLottery(data: CreateLotteryData): Promise<LotteryResult
         .eq('id', app.id)
     }
 
-    // 추첨 결과 이메일 전송 (비동기, 실패해도 추첨은 성공으로 처리)
-    try {
-      const { sendLotteryResultEmailsOnly } = await import('./email')
-      await sendLotteryResultEmailsOnly(reservation_period_id)
-      console.log('추첨 결과 이메일 전송 완료')
-    } catch (emailError) {
-      console.error('추첨 결과 이메일 전송 실패 (추첨은 정상 처리됨):', emailError)
-    }
+    // 추첨 결과 이메일 전송은 별도로 실행하도록 변경 (중복 전송 방지)
+    console.log('추첨 완료. 이메일 전송은 별도로 실행해주세요.')
 
     return lotteryResults
   } catch (error) {
@@ -192,19 +192,10 @@ export async function getLotteryResults(reservationPeriodId: string): Promise<Lo
   try {
     const supabase = createServiceRoleClient()
     
-    const { data, error } = await supabase
+    // 기본 추첨 결과 조회
+    const { data: lotteryResults, error } = await supabase
       .from('lottery_results')
-      .select(`
-        *,
-        employees (*),
-        applications (
-          *,
-          reservation_periods (
-            *,
-            accommodations (*)
-          )
-        )
-      `)
+      .select('*')
       .eq('reservation_period_id', reservationPeriodId)
       .order('rank')
 
@@ -213,14 +204,51 @@ export async function getLotteryResults(reservationPeriodId: string): Promise<Lo
       throw new Error(error.message)
     }
 
-    return (data || []).map(result => ({
-      ...result,
-      employee: result.employees,
-      application: {
-        ...result.applications,
-        reservation_period: result.applications?.reservation_periods
+    if (!lotteryResults || lotteryResults.length === 0) {
+      return []
+    }
+
+    // 관련 데이터 별도 조회
+    const applicationIds = [...new Set(lotteryResults.map(r => r.application_id))]
+    const employeeIds = [...new Set(lotteryResults.map(r => r.employee_id))]
+    const periodIds = [...new Set(lotteryResults.map(r => r.reservation_period_id))]
+
+    // 병렬로 관련 데이터 조회
+    const [applicationsData, employeesData, periodsData] = await Promise.all([
+      supabase
+        .from('applications')
+        .select('*')
+        .in('id', applicationIds),
+      
+      supabase
+        .from('employees')
+        .select('*')
+        .in('id', employeeIds),
+      
+      supabase
+        .from('reservation_periods')
+        .select(`
+          *,
+          accommodations (*)
+        `)
+        .in('id', periodIds)
+    ])
+
+    // 데이터 매핑
+    return lotteryResults.map(result => {
+      const application = applicationsData.data?.find(app => app.id === result.application_id)
+      const employee = employeesData.data?.find(emp => emp.id === result.employee_id)
+      const period = periodsData.data?.find(p => p.id === result.reservation_period_id)
+
+      return {
+        ...result,
+        employee,
+        application: {
+          ...application,
+          reservation_period: period
+        }
       }
-    }))
+    })
   } catch (error) {
     console.error('추첨 결과 조회 오류:', error)
     throw error

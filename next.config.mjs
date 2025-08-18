@@ -10,7 +10,7 @@ const nextConfig = {
     domains: [
       'localhost',
       // Supabase 프로젝트 URL 추가 필요
-      // 'your-project-id.supabase.co'
+      process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).host : undefined,
     ],
   },
   

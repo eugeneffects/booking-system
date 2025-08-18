@@ -12,6 +12,8 @@ import { Alert } from '@/components/ui/Alert'
 import { createAccommodation, updateAccommodation } from '@/lib/actions/accommodation'
 import type { Accommodation, CreateAccommodationData, UpdateAccommodationData } from '@/types/accommodation'
 import { ACCOMMODATION_TYPE_OPTIONS } from '@/types/accommodation'
+import Image from 'next/image'
+import { useRef } from 'react'
 
 interface AccommodationFormProps {
   accommodation?: Accommodation | null
@@ -35,6 +37,9 @@ export function AccommodationForm({ accommodation, onSuccess, onCancel }: Accomm
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [images, setImages] = useState<string[]>(accommodation?.image_urls || [])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const isEdit = !!accommodation
 
@@ -48,6 +53,7 @@ export function AccommodationForm({ accommodation, onSuccess, onCancel }: Accomm
         description: accommodation.description || '',
         is_active: accommodation.is_active
       })
+      setImages(accommodation.image_urls || [])
     }
   }, [accommodation])
 
@@ -66,7 +72,8 @@ export function AccommodationForm({ accommodation, onSuccess, onCancel }: Accomm
           type: formData.type,
           restriction_years: formData.restriction_years,
           description: formData.description || undefined,
-          is_active: formData.is_active
+          is_active: formData.is_active,
+          image_urls: images
         }
         result = await updateAccommodation(accommodation.id, updateData)
       } else {
@@ -76,7 +83,8 @@ export function AccommodationForm({ accommodation, onSuccess, onCancel }: Accomm
           type: formData.type,
           restriction_years: formData.restriction_years,
           description: formData.description || undefined,
-          is_active: formData.is_active
+          is_active: formData.is_active,
+          image_urls: images
         }
         result = await createAccommodation(createData)
       }
@@ -89,6 +97,38 @@ export function AccommodationForm({ accommodation, onSuccess, onCancel }: Accomm
       setError(error instanceof Error ? error.message : '저장에 실패했습니다.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0 || !accommodation) return
+    try {
+      setUploading(true)
+      const file = files[0]
+      const form = new FormData()
+      form.append('file', file)
+      form.append('accommodationId', accommodation.id)
+      const res = await fetch('/api/admin/upload-accommodation-image', {
+        method: 'POST',
+        body: form,
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || '업로드 실패')
+      }
+      setImages(prev => Array.from(new Set([...(prev || []), data.url])))
+      // 폼 데이터에도 반영
+    } catch (err) {
+      console.error('이미지 업로드 실패:', err)
+      setError(err instanceof Error ? err.message : '이미지 업로드 실패')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -118,6 +158,32 @@ export function AccommodationForm({ accommodation, onSuccess, onCancel }: Accomm
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 이미지 업로드 섹션 (수정 모드에서 표시) */}
+          {isEdit && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">대표 이미지</label>
+              <div className="flex flex-wrap gap-3 mb-3">
+                {images && images.length > 0 ? (
+                  images.map((url) => (
+                    <div key={url} className="relative w-28 h-20 rounded-md overflow-hidden border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="숙소 이미지" className="object-cover w-full h-full" />
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-gray-500">등록된 이미지가 없습니다.</p>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                <Button type="button" variant="outline" onClick={handleUploadClick} disabled={uploading}>
+                  {uploading ? '업로드 중...' : '이미지 추가'}
+                </Button>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">첫 번째 이미지가 신청 화면 카드에 표시됩니다.</p>
+            </div>
+          )}
+
           {/* 숙소명 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

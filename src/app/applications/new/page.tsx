@@ -159,8 +159,8 @@ function ApplicationFormContent() {
         form_data: {
           ...formData,
           // 선택된 예약 기간 정보도 함께 저장
-          selectedAccommodation: selectedPeriod.accommodations?.name,
-          selectedPeriod: `${formatDate(selectedPeriod.start_date)} ~ ${formatDate(selectedPeriod.end_date)}`,
+          selectedAccommodation: selectedPeriod!.accommodations?.name,
+          selectedPeriod: `${formatDate(selectedPeriod!.start_date)} ~ ${formatDate(selectedPeriod!.end_date)}`,
           applicationDate: new Date().toISOString()
         }
       }
@@ -330,6 +330,10 @@ function ApplicationFormContent() {
                           
                           {/* 숙소 정보 */}
                           <div className="mb-4">
+                            {period.accommodations?.image_urls && period.accommodations.image_urls.length > 0 && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={period.accommodations.image_urls[0]} alt="숙소 이미지" className="w-full h-40 object-cover rounded-md mb-3" />
+                            )}
                             <h4 className="text-lg font-semibold text-gray-900 mb-2">
                               {period.accommodations?.name}
                             </h4>

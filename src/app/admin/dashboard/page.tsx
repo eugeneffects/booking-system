@@ -1,15 +1,17 @@
 /**
  * 관리자 대시보드 페이지
- * 전체 시스템 현황과 주요 지표를 표시합니다.
+ * 전체 시스템 현황과 주요 지표를 표시하며, 각 관리 기능으로 쉽게 이동할 수 있습니다.
  */
 
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
   Building, 
   Users, 
   Calendar, 
   Trophy, 
-  TrendingUp,
   Clock,
   AlertCircle,
   ChevronRight
@@ -17,67 +19,129 @@ import {
 import { MainLayout } from '@/components/layouts/MainLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { getCurrentUser } from '@/lib/auth/utils'
-import { createServerComponentClient } from '@/lib/supabase/server'
+import { useRequireAdmin } from '@/hooks/useAuth'
 import { 
   getDashboardStats, 
   getRecentApplications, 
   getPendingLotteryPeriods 
 } from '@/lib/actions/dashboard'
 import { formatDate } from '@/lib/utils/date'
-import { redirect } from 'next/navigation'
 import { cn } from '@/lib/utils/cn'
 
+export default function AdminDashboardPage() {
+  const { user, isLoading } = useRequireAdmin()
+  const [stats, setStats] = useState<any>(null)
+  const [recentApplications, setRecentApplications] = useState<any[]>([])
+  const [pendingLotteries, setPendingLotteries] = useState<any[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
+  // 대시보드 데이터 로드
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (!user) return
 
+      try {
+        setIsLoadingData(true)
+        setError(null)
 
+        const [statsData, applicationsData, lotteriesData] = await Promise.all([
+          getDashboardStats(),
+          getRecentApplications(10),
+          getPendingLotteryPeriods(),
+        ])
 
-export default async function AdminDashboardPage() {
-  // 사용자 정보 및 권한 확인
-  const user = await getCurrentUser()
-  
-  if (!user?.isAdmin) {
-    redirect('/')
+        setStats(statsData)
+        setRecentApplications(applicationsData)
+        setPendingLotteries(lotteriesData)
+      } catch (err) {
+        console.error('대시보드 데이터 로드 실패:', err)
+        setError('데이터를 불러오는데 실패했습니다.')
+      } finally {
+        setIsLoadingData(false)
+      }
+    }
+
+    loadDashboardData()
+  }, [user])
+
+  // 로딩 중이거나 인증 확인 중인 경우
+  if (isLoading || isLoadingData) {
+    return (
+      <MainLayout user={user}>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600">
+              {isLoading ? '인증 확인 중...' : '데이터를 불러오는 중...'}
+            </p>
+          </div>
+        </div>
+      </MainLayout>
+    )
   }
-  
-  // 대시보드 데이터 가져오기
-  const [stats, recentApplications, pendingLotteries] = await Promise.all([
-    getDashboardStats(),
-    getRecentApplications(10),
-    getPendingLotteryPeriods(),
-  ])
+
+  // 에러가 있는 경우
+  if (error) {
+    return (
+      <MainLayout user={user}>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600">{error}</p>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
+  // 기본 통계 데이터 (데이터가 없을 때)
+  const defaultStats = {
+    totalEmployees: 0,
+    activeAccommodations: 0,
+    totalApplicationsThisMonth: 0,
+    totalWinnersThisMonth: 0
+  }
+
+  const currentStats = stats || defaultStats
   
   // 통계 카드 데이터
   const statsCards = [
     {
       title: '전체 임직원',
-      value: stats.totalEmployees.toLocaleString(),
+      value: currentStats.totalEmployees.toLocaleString(),
       icon: Users,
       color: 'blue',
       href: '/admin/employees',
+      description: '등록된 임직원 수'
     },
     {
       title: '등록 숙소',
-      value: stats.activeAccommodations.toLocaleString(),
+      value: currentStats.activeAccommodations.toLocaleString(),
       icon: Building,
       color: 'green',
       href: '/admin/accommodations',
+      description: '활성화된 숙소 수'
     },
     {
       title: '이번 달 신청',
-      value: stats.totalApplicationsThisMonth.toLocaleString(),
+      value: currentStats.totalApplicationsThisMonth.toLocaleString(),
       icon: Calendar,
       color: 'purple',
       href: '/admin/applications',
+      description: '이번 달 신청 건수'
     },
     {
       title: '이번 달 당첨',
-      value: stats.totalWinnersThisMonth.toLocaleString(),
+      value: currentStats.totalWinnersThisMonth.toLocaleString(),
       icon: Trophy,
       color: 'yellow',
       href: '/admin/lottery',
+      description: '이번 달 당첨자 수'
     },
   ]
+
+
   
   return (
     <MainLayout user={user}>
@@ -86,34 +150,38 @@ export default async function AdminDashboardPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">관리자 대시보드</h1>
           <p className="mt-2 text-gray-600">
-            숙소예약 추첨 시스템의 전체 현황을 확인하세요.
+            숙소예약 추첨 시스템의 전체 현황을 확인하고 각 관리 기능에 접근하세요.
           </p>
         </div>
         
         {/* 통계 카드 */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {statsCards.map((stat) => {
-            const Icon = stat.icon
-            return (
-              <Link key={stat.title} href={stat.href}>
-                <Card hoverable clickable>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">{stat.title}</p>
-                      <p className="mt-1 text-3xl font-bold text-gray-900">
-                        {stat.value}
-                      </p>
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">시스템 현황</h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {statsCards.map((stat) => {
+              const Icon = stat.icon
+              return (
+                <Link key={stat.title} href={stat.href}>
+                  <Card hoverable clickable className="h-full">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-600">{stat.title}</p>
+                        <p className="mt-1 text-3xl font-bold text-gray-900">
+                          {stat.value}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">{stat.description}</p>
+                      </div>
+                      <div className={`rounded-lg bg-${stat.color}-100 p-3`}>
+                        <Icon className={`h-8 w-8 text-${stat.color}-600`} />
+                      </div>
                     </div>
-                    <div className={`rounded-lg bg-${stat.color}-100 p-3`}>
-                      <Icon className={`h-8 w-8 text-${stat.color}-600`} />
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            )
-          })}
+                  </Card>
+                </Link>
+              )
+            })}
+          </div>
         </div>
-        
+          
         <div className="grid gap-8 lg:grid-cols-2">
           {/* 다가오는 추첨 일정 */}
           <Card>
@@ -162,6 +230,9 @@ export default async function AdminDashboardPage() {
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <AlertCircle className="mb-2 h-8 w-8 text-gray-400" />
                   <p className="text-gray-600">예정된 추첨이 없습니다.</p>
+                  <Link href="/admin/lottery" className="mt-2">
+                    <Button size="sm">추첨 생성하기</Button>
+                  </Link>
                 </div>
               )}
             </Card.Body>
@@ -226,41 +297,8 @@ export default async function AdminDashboardPage() {
             </Card.Body>
           </Card>
         </div>
-        
-        {/* 빠른 작업 */}
-        <Card>
-          <Card.Header>
-            <Card.Title>빠른 작업</Card.Title>
-          </Card.Header>
-          <Card.Body>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Link href="/admin/accommodations/new">
-                <Button variant="outline" className="w-full">
-                  <Building className="mr-2 h-4 w-4" />
-                  숙소 추가
-                </Button>
-              </Link>
-              <Link href="/admin/employees/import">
-                <Button variant="outline" className="w-full">
-                  <Users className="mr-2 h-4 w-4" />
-                  임직원 업로드
-                </Button>
-              </Link>
-              <Link href="/admin/lottery/new">
-                <Button variant="outline" className="w-full">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  추첨 일정 생성
-                </Button>
-              </Link>
-              <Link href="/admin/reports">
-                <Button variant="outline" className="w-full">
-                  <TrendingUp className="mr-2 h-4 w-4" />
-                  보고서 생성
-                </Button>
-              </Link>
-            </div>
-          </Card.Body>
-        </Card>
+
+
       </div>
     </MainLayout>
   )

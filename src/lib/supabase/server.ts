@@ -62,6 +62,49 @@ export async function createServerComponentClient() {
 }
 
 /**
+ * API 라우트용 Supabase 클라이언트 생성
+ * API 라우트에서 사용할 수 있는 클라이언트입니다.
+ */
+export async function createClient() {
+  const cookieStore = await cookies()
+
+  // 환경변수 확인
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase 환경변수가 설정되지 않았습니다.')
+    throw new Error('Supabase 환경변수가 설정되지 않았습니다.')
+  }
+
+  return createServerClient<Database>(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value, ...options })
+          } catch (error) {
+            // API 라우트에서는 쿠키 설정이 제한될 수 있음
+          }
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value: '', ...options })
+          } catch (error) {
+            // API 라우트에서는 쿠키 삭제가 제한될 수 있음
+          }
+        },
+      },
+    }
+  )
+}
+
+/**
  * 서비스 역할 클라이언트 생성 (관리자 작업용)
  * 서비스 역할 키를 사용하여 RLS를 우회할 수 있습니다.
  * 주의: 클라이언트 사이드에서는 절대 사용하지 마세요!

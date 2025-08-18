@@ -42,6 +42,39 @@ export function ReservationPeriodForm({ period, accommodation, onSuccess, onCanc
 
   const isEdit = !!period
 
+  // 날짜/시간을 datetime-local 형식으로 변환하는 함수
+  const formatDateTimeForInput = (dateString: string): string => {
+    if (!dateString) return ''
+    
+    try {
+      const date = new Date(dateString)
+      // 로컬 시간대로 변환하여 YYYY-MM-DDTHH:mm 형식으로 반환
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      
+      return `${year}-${month}-${day}T${hours}:${minutes}`
+    } catch (error) {
+      console.error('날짜 변환 오류:', error)
+      return ''
+    }
+  }
+
+  // datetime-local 값을 ISO 문자열로 변환하는 함수
+  const formatDateTimeForServer = (dateTimeString: string): string => {
+    if (!dateTimeString) return ''
+    
+    try {
+      const date = new Date(dateTimeString)
+      return date.toISOString()
+    } catch (error) {
+      console.error('날짜 변환 오류:', error)
+      return ''
+    }
+  }
+
   // 활성 숙소 목록 로드
   useEffect(() => {
     const loadAccommodations = async () => {
@@ -67,8 +100,8 @@ export function ReservationPeriodForm({ period, accommodation, onSuccess, onCanc
         name: period.name,
         start_date: period.start_date,
         end_date: period.end_date,
-        application_start: period.application_start,
-        application_end: period.application_end,
+        application_start: formatDateTimeForInput(period.application_start),
+        application_end: formatDateTimeForInput(period.application_end),
         available_rooms: period.available_rooms,
         is_active: period.is_active
       })
@@ -96,8 +129,8 @@ export function ReservationPeriodForm({ period, accommodation, onSuccess, onCanc
           name: formData.name,
           start_date: formData.start_date,
           end_date: formData.end_date,
-          application_start: formData.application_start,
-          application_end: formData.application_end,
+          application_start: formatDateTimeForServer(formData.application_start),
+          application_end: formatDateTimeForServer(formData.application_end),
           available_rooms: formData.available_rooms,
           is_active: formData.is_active
         }
@@ -109,8 +142,8 @@ export function ReservationPeriodForm({ period, accommodation, onSuccess, onCanc
           name: formData.name,
           start_date: formData.start_date,
           end_date: formData.end_date,
-          application_start: formData.application_start,
-          application_end: formData.application_end,
+          application_start: formatDateTimeForServer(formData.application_start),
+          application_end: formatDateTimeForServer(formData.application_end),
           available_rooms: formData.available_rooms,
           is_active: formData.is_active
         }
@@ -140,8 +173,7 @@ export function ReservationPeriodForm({ period, accommodation, onSuccess, onCanc
   
   // 현재 날짜시간을 YYYY-MM-DDTHH:mm 형식으로 가져오기
   const now = new Date()
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset()) // 로컬 시간대 조정
-  const nowString = now.toISOString().slice(0, 16)
+  const nowString = formatDateTimeForInput(now.toISOString())
 
   if (loadingAccommodations) {
     return (

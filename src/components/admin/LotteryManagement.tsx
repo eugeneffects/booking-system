@@ -7,16 +7,14 @@
 import { useState, useEffect } from 'react'
 import { 
   Shuffle, 
-  Users, 
-  Trophy, 
-  AlertTriangle, 
-  RefreshCw, 
   Calendar,
   Building,
   Eye,
   RotateCcw,
-  Mail
+  Mail,
+  Home
 } from 'lucide-react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
@@ -50,7 +48,10 @@ export function LotteryManagement({ currentUserId }: LotteryManagementProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isSendingEmails, setIsSendingEmails] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [emailResult, setEmailResult] = useState<any>(null)
+  const [emailResult, setEmailResult] = useState<
+    | { success: boolean; summary?: { winnersNotified?: number; losersNotified?: number; errors?: number } }
+    | null
+  >(null)
 
   // 예약 기간 목록 로드
   const loadPeriods = async () => {
@@ -187,9 +188,19 @@ export function LotteryManagement({ currentUserId }: LotteryManagementProps) {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">추첨 관리</h2>
-        <p className="text-gray-600">숙소 예약 추첨을 실행하고 결과를 관리할 수 있습니다.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">추첨 관리</h2>
+          <p className="text-gray-600">숙소 예약 추첨을 실행하고 결과를 관리할 수 있습니다.</p>
+        </div>
+        
+        {/* 대시보드로 돌아가기 버튼 */}
+        <Link href="/admin/dashboard">
+          <Button variant="outline" size="sm" className="flex items-center gap-1">
+            <Home className="h-4 w-4" />
+            대시보드
+          </Button>
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -351,7 +362,13 @@ export function LotteryManagement({ currentUserId }: LotteryManagementProps) {
                     <>
                       <Button
                         variant="outline"
-                        onClick={() => {/* TODO: 결과 상세보기 */}}
+                        onClick={() => {
+                          // 결과가 이미 로드되어 있으므로 스크롤만 이동
+                          const resultsSection = document.getElementById('lottery-results')
+                          if (resultsSection) {
+                            resultsSection.scrollIntoView({ behavior: 'smooth' })
+                          }
+                        }}
                         leftIcon={<Eye className="h-4 w-4" />}
                       >
                         결과 보기
@@ -390,8 +407,8 @@ export function LotteryManagement({ currentUserId }: LotteryManagementProps) {
                           <div className="text-sm">
                             <div>• 당첨자: {emailResult.summary?.winnersNotified}명</div>
                             <div>• 미당첨자: {emailResult.summary?.losersNotified}명</div>
-                            {emailResult.summary?.errors > 0 && (
-                              <div className="text-orange-600">• 전송 실패: {emailResult.summary.errors}명</div>
+                            {(emailResult.summary?.errors ?? 0) > 0 && (
+                              <div className="text-orange-600">• 전송 실패: {emailResult.summary?.errors}명</div>
                             )}
                           </div>
                         </div>
@@ -409,7 +426,7 @@ export function LotteryManagement({ currentUserId }: LotteryManagementProps) {
 
       {/* 추첨 결과 목록 */}
       {results.length > 0 && (
-        <Card>
+        <Card id="lottery-results">
           <div className="p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">추첨 결과</h3>
             

@@ -407,17 +407,7 @@ export async function createReservationPeriod(data: CreateReservationPeriodData)
       throw new Error('신청 종료일은 숙박 시작일보다 빨라야 합니다.')
     }
 
-    // 중복 기간 확인
-    const { data: existing } = await supabase
-      .from('reservation_periods')
-      .select('id')
-      .eq('accommodation_id', data.accommodation_id)
-      .eq('is_active', true)
-      .or(`start_date.lte.${data.end_date},end_date.gte.${data.start_date}`)
-
-    if (existing && existing.length > 0) {
-      throw new Error('해당 기간에 겹치는 예약 기간이 이미 존재합니다.')
-    }
+    // 중복 기간 확인 제거 - 겹침 허용
 
     const { data: newPeriod, error } = await supabase
       .from('reservation_periods')

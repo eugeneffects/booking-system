@@ -9,7 +9,6 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
-  Home, 
   Building, 
   Calendar, 
   Users, 
@@ -17,12 +16,12 @@ import {
   Settings,
   Menu,
   X,
-  ChevronDown
+  ChevronDown,
+  Mail
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { Button } from '@/components/ui/Button'
 import { LogoutButton } from '@/components/auth/LogoutButton'
-import { useAuthStore } from '@/store/authStore'
 
 interface MainLayoutProps {
   children: React.ReactNode
@@ -39,7 +38,6 @@ interface MainLayoutProps {
  */
 const navigation = {
   main: [
-    { name: '홈', href: '/', icon: Home },
     { name: '신청 현황', href: '/applications', icon: Calendar },
   ],
   admin: [
@@ -47,6 +45,7 @@ const navigation = {
     { name: '숙소 관리', href: '/admin/accommodations', icon: Building },
     { name: '임직원 관리', href: '/admin/employees', icon: Users },
     { name: '추첨 관리', href: '/admin/lottery', icon: Calendar },
+    { name: '이메일 템플릿', href: '/admin/email-templates', icon: Mail },
     { name: '설정', href: '/admin/settings', icon: Settings },
   ],
 }
@@ -65,24 +64,14 @@ export function MainLayout({ children, user }: MainLayoutProps) {
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false)
-  const [isMounted, setIsMounted] = React.useState(false)
+  
   const dropdownRef = React.useRef<HTMLDivElement>(null)
-  const storeUser = useAuthStore((s) => s.user)
-  const effectiveUser = user ?? (storeUser
-    ? { id: storeUser.id, email: storeUser.email, name: storeUser.name, isAdmin: !!storeUser.isAdmin }
-    : null)
+  const effectiveUser = user
 
-  console.log('🏗️ MainLayout 렌더링:', { 
-    hasUser: !!effectiveUser, 
-    userName: effectiveUser?.name,
-    userEmail: effectiveUser?.email,
-    pathname 
-  })
+  
 
   // 클라이언트 사이드 마운트 확인
-  React.useEffect(() => {
-    setIsMounted(true)
-  }, [])
+  
 
   // 외부 클릭 시 드롭다운 닫기
   React.useEffect(() => {
@@ -123,7 +112,10 @@ export function MainLayout({ children, user }: MainLayoutProps) {
                   <Menu className="h-6 w-6" />
                 )}
               </button>
-              <Link href="/" className="ml-2 lg:ml-0">
+              <Link 
+                href={effectiveUser ? "/applications" : "/"} 
+                className="ml-2 lg:ml-0"
+              >
                 <h1 className="text-xl font-bold text-gray-900">
                   숙소예약 추첨 시스템
                 </h1>
@@ -179,13 +171,15 @@ export function MainLayout({ children, user }: MainLayoutProps) {
                         <p className="text-xs text-gray-500">{effectiveUser.email}</p>
                       </div>
                       
-                      <Link
-                        href="/applications"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        신청 현황
-                      </Link>
+                      {!isAdminPage && (
+                        <Link
+                          href="/applications"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          신청 현황
+                        </Link>
+                      )}
                       
                       {effectiveUser.isAdmin && !isAdminPage && (
                         <Link
@@ -193,17 +187,27 @@ export function MainLayout({ children, user }: MainLayoutProps) {
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
-                          관리자 페이지
+                          관리자 대시보드
                         </Link>
                       )}
                       
                       {isAdminPage && (
                         <Link
-                          href="/"
+                          href="/applications"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
-                          사용자 페이지
+                          신청 현황
+                        </Link>
+                      )}
+                      
+                      {isAdminPage && (
+                        <Link
+                          href="/admin/dashboard"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          대시보드
                         </Link>
                       )}
                       
