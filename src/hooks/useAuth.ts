@@ -164,6 +164,14 @@ async function initializeAuth() {
           const user = await transformUser(session.user)
           updateAuthState({ user, session, isLoading: false })
         } else if (event === 'SIGNED_OUT') {
+          console.log('🔄 SIGNED_OUT 이벤트: 인증 상태 완전 초기화')
+          // 로그아웃 시 전역 상태 완전 초기화
+          globalAuthState = {
+            user: null,
+            session: null,
+            isLoading: false,
+            isInitialized: true,
+          }
           updateAuthState({ user: null, session: null, isLoading: false })
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           const user = await transformUser(session.user)
@@ -328,9 +336,35 @@ export function useAuth() {
     
     try {
       const supabase = createClient()
-      await supabase.auth.signOut()
       
-      // 상태를 즉시 초기화
+      // Supabase 로그아웃 실행 (모든 세션 삭제)
+      const { error } = await supabase.auth.signOut({
+        scope: 'global' // 모든 디바이스에서 로그아웃
+      })
+      
+      if (error) {
+        console.error('❌ Supabase 로그아웃 실패:', error)
+      }
+      
+      // 브라우저 스토리지 완전 정리
+      try {
+        localStorage.clear()
+        sessionStorage.clear()
+        
+        // Supabase 관련 쿠키 삭제
+        document.cookie.split(";").forEach(cookie => {
+          const eqPos = cookie.indexOf("=")
+          const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim()
+          if (name.includes('supabase') || name.includes('sb-')) {
+            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`
+            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+          }
+        })
+      } catch (storageError) {
+        console.warn('⚠️ 스토리지 정리 중 오류:', storageError)
+      }
+      
+      // 전역 인증 상태 완전 초기화
       updateAuthState({ 
         user: null, 
         session: null, 
@@ -339,14 +373,20 @@ export function useAuth() {
       
       toast.success('로그아웃되었습니다.')
       
-      // 강제로 홈페이지로 리다이렉트
-      window.location.href = '/'
+      // Next.js 라우터를 사용한 리다이렉트
+      router.push('/')
+      
+      // 추가 보안: 잠시 후 페이지 새로고침으로 완전 초기화
+      setTimeout(() => {
+        window.location.reload()
+      }, 100)
+      
     } catch (error) {
       console.error('❌ 로그아웃 실패:', error)
       toast.error('로그아웃 중 오류가 발생했습니다.')
       updateAuthState({ isLoading: false })
     }
-  }, [])
+  }, [router])
   
   return {
     user: globalAuthState.user,
