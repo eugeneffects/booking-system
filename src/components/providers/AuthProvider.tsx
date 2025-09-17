@@ -16,9 +16,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // useAuth 훅을 호출하여 인증 상태 초기화
   const { isInitialized } = useAuth()
   
-  useEffect(() => {
-    console.log('🔒 AuthProvider 마운트됨, 초기화 상태:', isInitialized)
-  }, [isInitialized])
 
   // 항상 children을 렌더링 (로딩 화면은 각 페이지에서 처리)
   return <>{children}</>

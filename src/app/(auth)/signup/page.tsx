@@ -32,7 +32,6 @@ export default function SignUpPage() {
   // 이미 로그인한 경우 신청 현황으로 리다이렉트
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
-      console.log('✅ 이미 로그인된 사용자 - 신청 현황으로 이동')
       router.push('/applications')
     }
   }, [isAuthenticated, authLoading, router])

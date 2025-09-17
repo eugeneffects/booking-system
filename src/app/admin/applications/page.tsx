@@ -19,7 +19,6 @@ export default function ApplicationsPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   const handleDelete = (application: Application) => {
-    console.log('신청 삭제:', application)
     setRefreshTrigger(prev => prev + 1)
   }
 

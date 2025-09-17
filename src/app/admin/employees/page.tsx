@@ -41,7 +41,6 @@ export default function EmployeesPage() {
   }
 
   const handleFormSuccess = (employee: Employee) => {
-    console.log('임직원 저장 완료:', employee)
     setViewMode('list')
     setSelectedEmployee(null)
     setRefreshTrigger(prev => prev + 1)

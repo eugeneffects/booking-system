@@ -71,22 +71,11 @@ export default function HomePage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
 
-  console.log('🏠 HomePage 렌더링:', { 
-    user: user?.name, 
-    isLoading, 
-    isAuthenticated,
-    isSupabaseConfigured 
-  })
 
-  // 컴포넌트 마운트 시 로그 출력
-  useEffect(() => {
-    console.log('🏠 메인 페이지 마운트됨')
-  }, [])
 
   // 로그인된 사용자는 자동으로 신청 현황 페이지로 리다이렉트 (인증이 완료된 후에만)
   useEffect(() => {
     if (isInitialized && !isLoading && isAuthenticated && user) {
-      console.log('🚀 로그인된 사용자 자동 리다이렉트')
       router.push('/applications')
     }
   }, [isInitialized, isLoading, isAuthenticated, user, router])
@@ -105,7 +94,6 @@ export default function HomePage() {
     )
   }
 
-  console.log('📝 로그인 화면 표시')
 
   /**
    * 폼 유효성 검사

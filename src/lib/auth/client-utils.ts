@@ -11,11 +11,9 @@ import type { User } from '@/types/auth'
  */
 export async function transformSupabaseUserClient(userId: string): Promise<User | null> {
   try {
-    console.log('🔄 사용자 정보 변환 시작, userId:', userId)
     const supabase = createClient()
 
     // 임직원 정보 조회
-    console.log('📋 임직원 정보 조회 중...')
     
     // 더미 클라이언트인 경우 빠른 실패
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -30,11 +28,6 @@ export async function transformSupabaseUserClient(userId: string): Promise<User 
       .eq('id', userId)
       .single()
 
-    console.log('👥 임직원 조회 결과:', { 
-      found: !!employee, 
-      name: employee?.name, 
-      error: employeeError?.message 
-    })
 
     if (employeeError || !employee) {
       console.error('❌ 임직원 정보 조회 실패:', employeeError)
@@ -42,7 +35,6 @@ export async function transformSupabaseUserClient(userId: string): Promise<User 
     }
 
     // 관리자 여부 확인
-    console.log('🔍 관리자 권한 확인 중...')
     const { data: adminUser, error: adminError } = await supabase
       .from('admin_users')
       .select('*')
@@ -50,11 +42,6 @@ export async function transformSupabaseUserClient(userId: string): Promise<User 
       .eq('is_active', true)
       .single()
 
-    console.log('👑 관리자 조회 결과:', { 
-      isAdmin: !!adminUser, 
-      role: adminUser?.role,
-      error: adminError?.message 
-    })
 
     // User 객체 생성
     const user: User = {
@@ -68,7 +55,6 @@ export async function transformSupabaseUserClient(userId: string): Promise<User 
       adminRole: adminUser?.role as 'super_admin' | 'admin' | undefined,
     }
 
-    console.log('✅ 사용자 객체 생성 완료:', user.name, user.isAdmin ? '(관리자)' : '(일반)')
     return user
   } catch (error) {
     console.error('💥 사용자 정보 변환 실패:', error)

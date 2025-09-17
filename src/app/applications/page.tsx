@@ -28,12 +28,6 @@ export default function ApplicationsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  console.log('📋 Applications 페이지:', { 
-    hasUser: !!user, 
-    userName: user?.name,
-    authLoading,
-    isLoading 
-  })
 
   const loadData = async () => {
     if (!user) return

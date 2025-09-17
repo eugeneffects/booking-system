@@ -87,10 +87,6 @@ async function transformUser(supabaseUser: SupabaseUser): Promise<User | null> {
     
     const adminUser = adminUsers && adminUsers.length > 0 ? adminUsers[0] : null
     
-    console.log('🔍 관리자 권한 확인:', {
-      employeeId: employee.id,
-      hasAdminRole: !!adminUser,
-    })
     
     return {
       id: employee.id,
@@ -117,7 +113,6 @@ async function initializeAuth() {
   if (isAuthInitialized) return
   isAuthInitialized = true
   
-  console.log('🔄 인증 시스템 초기화 시작')
   
   try {
     const supabase = createClient()
@@ -137,7 +132,6 @@ async function initializeAuth() {
     }
     
     if (session?.user) {
-      console.log('✅ 기존 세션 발견:', session.user.email)
       const user = await transformUser(session.user)
       updateAuthState({ 
         user, 
@@ -146,7 +140,6 @@ async function initializeAuth() {
         isInitialized: true 
       })
     } else {
-      console.log('ℹ️ 세션 없음 - 로그인 필요')
       updateAuthState({ 
         user: null, 
         session: null, 
@@ -158,13 +151,11 @@ async function initializeAuth() {
     // 2. 인증 상태 변경 리스너 설정
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔔 인증 상태 변경:', event, session?.user?.email)
         
         if (event === 'SIGNED_IN' && session?.user) {
           const user = await transformUser(session.user)
           updateAuthState({ user, session, isLoading: false })
         } else if (event === 'SIGNED_OUT') {
-          console.log('🔄 SIGNED_OUT 이벤트: 인증 상태 완전 초기화')
           // 로그아웃 시 전역 상태 완전 초기화
           globalAuthState = {
             user: null,
@@ -220,7 +211,6 @@ export function useAuth() {
    * 로그인
    */
   const signIn = useCallback(async (formData: LoginFormData) => {
-    console.log('🔐 로그인 시도:', formData.email)
     updateAuthState({ isLoading: true })
     
     try {
@@ -238,7 +228,6 @@ export function useAuth() {
       }
       
       if (data.user) {
-        console.log('✅ 로그인 성공:', data.user.email)
         const user = await transformUser(data.user)
         updateAuthState({ user, session: data.session, isLoading: false })
         
@@ -268,7 +257,6 @@ export function useAuth() {
    * 회원가입
    */
   const signUp = useCallback(async (data: SignUpFormData) => {
-    console.log('📝 회원가입 시도:', data.email)
     updateAuthState({ isLoading: true })
     
     try {
@@ -294,7 +282,6 @@ export function useAuth() {
       }
       
       if (signUpData.user) {
-        console.log('✅ 회원가입 성공:', signUpData.user.email)
         
         // 회원가입 후 자동 로그인 처리
         const user = await transformUser(signUpData.user)
@@ -331,7 +318,6 @@ export function useAuth() {
    * 로그아웃
    */
   const signOut = useCallback(async () => {
-    console.log('👋 로그아웃 시도')
     updateAuthState({ isLoading: true })
     
     try {
@@ -411,7 +397,6 @@ export function useRequireAuth() {
   
   useEffect(() => {
     if (!isLoading && isInitialized && !user) {
-      console.log('🚨 인증 필요 - 로그인 페이지로 이동')
       router.push('/')
     }
   }, [user, isLoading, isInitialized, router])
@@ -444,7 +429,6 @@ export function useRequireAdmin() {
         .then(data => {
           setIsAdmin(data.isAdmin)
           if (!data.isAdmin) {
-            console.log('🚨 관리자 권한 없음 - 신청 현황 페이지로 이동')
             toast.error('관리자 권한이 필요합니다.')
             router.push('/applications')
           }
@@ -467,7 +451,6 @@ export function useRequireAdmin() {
   
   useEffect(() => {
     if (!isLoading && isInitialized && !user) {
-      console.log('🚨 로그인 필요 - 로그인 페이지로 이동')
       router.push('/')
     }
   }, [user, isLoading, isInitialized, router])
