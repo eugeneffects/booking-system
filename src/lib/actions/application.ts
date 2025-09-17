@@ -145,7 +145,7 @@ export async function getApplication(id: string): Promise<Application | null> {
       return null
     }
 
-    let application = data
+    const application = data
 
     // 예약 기간 정보를 별도로 조회
     if (application.reservation_period_id) {
@@ -514,9 +514,9 @@ export async function deleteApplications(applicationIds: string[]): Promise<void
       let applicationEnd = null
       if (app.reservation_periods) {
         if (Array.isArray(app.reservation_periods) && app.reservation_periods.length > 0) {
-          applicationEnd = app.reservation_periods[0].application_end
-        } else if (typeof app.reservation_periods === 'object' && app.reservation_periods.application_end) {
-          applicationEnd = app.reservation_periods.application_end
+          applicationEnd = (app.reservation_periods[0] as any)?.application_end
+        } else if (typeof app.reservation_periods === 'object' && (app.reservation_periods as any).application_end) {
+          applicationEnd = (app.reservation_periods as any).application_end
         }
       }
 

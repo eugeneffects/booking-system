@@ -141,14 +141,14 @@ export default function SettingsPage() {
       const result = await sendTestEmail(testEmail)
       
       if (result.success) {
-        setTestResult({ 
-          success: true, 
-          message: `테스트 이메일이 성공적으로 전송되었습니다. (Message ID: ${result.messageId})` 
+        setTestResult({
+          success: true,
+          message: `테스트 이메일이 성공적으로 전송되었습니다. (Message ID: ${result.messageId})`
         })
       } else {
-        setTestResult({ 
-          success: false, 
-          message: `이메일 전송 실패: ${result.error}` 
+        setTestResult({
+          success: false,
+          message: `이메일 전송 실패`
         })
       }
     } catch (error) {
