@@ -125,11 +125,6 @@ function ApplicationFormContent() {
       return false
     }
 
-    if (!formData.emergencyContact.trim()) {
-      setError('비상연락처를 입력해주세요.')
-      return false
-    }
-
     if (!formData.termsAgreed) {
       setError('이용약관에 동의해주세요.')
       return false
@@ -471,61 +466,11 @@ function ApplicationFormContent() {
               </div>
             </Card>
 
-            {/* 추가 정보 */}
-            <Card>
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                  추가 정보
-                </h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      동반자 수
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="10"
-                      value={formData.companions}
-                      onChange={(e) => handleChange('companions', parseInt(e.target.value) || 0)}
-                      placeholder="동반자 수를 입력하세요"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      비상연락처 *
-                    </label>
-                    <Input
-                      value={formData.emergencyContact}
-                      onChange={(e) => handleChange('emergencyContact', e.target.value)}
-                      placeholder="비상시 연락 가능한 연락처를 입력하세요"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      특별 요청사항
-                    </label>
-                    <textarea
-                      value={formData.specialRequests}
-                      onChange={(e) => handleChange('specialRequests', e.target.value)}
-                      placeholder="특별한 요청사항이 있으시면 입력해주세요"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      rows={4}
-                    />
-                  </div>
-                </div>
-              </div>
-            </Card>
-
             {/* 동의사항 */}
             <Card>
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                  <span className="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
                   동의사항
                 </h3>
                 
@@ -539,10 +484,15 @@ function ApplicationFormContent() {
                     />
                     <div className="flex-1">
                       <div className="text-sm font-medium text-gray-900">
-                        이용약관 동의 (필수)
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        숙소 이용에 관한 약관에 동의합니다.
+                        유의사항 (필수) <br />
+                        
+                        <br />
+                        당첨이 되신 분들은 날짜 변경 및 임의양도 불가하며, 취소 시 향후 이용에 제한이 있습니다.
+                        <br />
+                        (가족 양도 불가, 본인 방문 필수)
+                        <br />
+                        <br />
+                        당첨시 예약일자에 방문이 가능하며, 개인사유로 노쇼, 취소, 변경시 발생되는 위약금은 본인 부담입니다.
                       </div>
                     </div>
                   </label>

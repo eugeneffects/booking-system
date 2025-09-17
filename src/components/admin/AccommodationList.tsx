@@ -9,9 +9,10 @@ import { Search, Plus, Edit, Trash2, Building, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
-import { getAccommodations, deleteAccommodation } from '@/lib/actions/accommodation'
+import { getAccommodations, deleteAccommodation, permanentDeleteAccommodation } from '@/lib/actions/accommodation'
 import type { Accommodation, AccommodationListParams } from '@/types/accommodation'
 import { ACCOMMODATION_TYPES } from '@/types/accommodation'
+import { formatDate } from '@/lib/utils/date'
 
 interface AccommodationListProps {
   onEdit?: (accommodation: Accommodation) => void
@@ -26,7 +27,7 @@ export function AccommodationList({ onEdit, onAdd, onManagePeriods, refreshTrigg
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [selectedType, setSelectedType] = useState<'ANANTI' | 'SONOBEL' | 'OTHER' | ''>('')
+  const [selectedType, setSelectedType] = useState<'ANANTI' | 'RISOM' | 'OTHER' | ''>('')
   const [showInactive, setShowInactive] = useState(false)
 
   const limit = 20
@@ -54,7 +55,7 @@ export function AccommodationList({ onEdit, onAdd, onManagePeriods, refreshTrigg
     }
   }
 
-  // 숙소 삭제
+  // 숙소 비활성화
   const handleDelete = async (accommodation: Accommodation) => {
     if (!confirm(`${accommodation.name} 숙소를 비활성화하시겠습니까?`)) {
       return
@@ -64,8 +65,23 @@ export function AccommodationList({ onEdit, onAdd, onManagePeriods, refreshTrigg
       await deleteAccommodation(accommodation.id)
       loadAccommodations() // 목록 새로고침
     } catch (error) {
-      console.error('숙소 삭제 실패:', error)
-      alert('삭제에 실패했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'))
+      console.error('숙소 비활성화 실패:', error)
+      alert('비활성화에 실패했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'))
+    }
+  }
+
+  // 숙소 완전 삭제
+  const handlePermanentDelete = async (accommodation: Accommodation) => {
+    if (!confirm(`${accommodation.name} 숙소를 완전히 삭제하시겠습니까?\n\n⚠️ 이 작업은 되돌릴 수 없습니다!`)) {
+      return
+    }
+
+    try {
+      await permanentDeleteAccommodation(accommodation.id)
+      loadAccommodations() // 목록 새로고침
+    } catch (error) {
+      console.error('숙소 완전 삭제 실패:', error)
+      alert('완전 삭제에 실패했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'))
     }
   }
 
@@ -138,11 +154,11 @@ export function AccommodationList({ onEdit, onAdd, onManagePeriods, refreshTrigg
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value as 'ANANTI' | 'SONOBEL' | 'OTHER' | '')}
+                onChange={(e) => setSelectedType(e.target.value as 'ANANTI' | 'RISOM' | 'OTHER' | '')}
               >
                 <option value="">전체 타입</option>
                 <option value="ANANTI">아난티</option>
-                <option value="SONOBEL">소노벨</option>
+                <option value="RISOM">리솜</option>
                 <option value="OTHER">기타</option>
               </select>
             </div>
@@ -216,7 +232,7 @@ export function AccommodationList({ onEdit, onAdd, onManagePeriods, refreshTrigg
                         </p>
                       )}
                       <p className="text-xs text-gray-500">
-                        등록일: {new Date(accommodation.created_at).toLocaleDateString('ko-KR')}
+                        등록일: {formatDate(accommodation.created_at, 'korean')}
                       </p>
                     </div>
                   </div>
@@ -243,12 +259,23 @@ export function AccommodationList({ onEdit, onAdd, onManagePeriods, refreshTrigg
                         <Edit className="h-4 w-4" />
                       </Button>
                     )}
-                    {accommodation.is_active && (
+                    {accommodation.is_active ? (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(accommodation)}
+                        className="text-orange-600 hover:text-orange-700"
+                        title="비활성화"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handlePermanentDelete(accommodation)}
                         className="text-red-600 hover:text-red-700"
+                        title="완전 삭제"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

@@ -83,19 +83,27 @@ export async function sendApplicationConfirmation(applicationId: string) {
  */
 export async function sendLotteryResultEmailsOnly(reservationPeriodId: string) {
   try {
+    console.log('추첨 결과 이메일 전송 시작:', reservationPeriodId)
+
     const results = await getLotteryResults(reservationPeriodId)
     if (!results || results.length === 0) {
       throw new Error('추첨 결과를 찾을 수 없습니다.')
     }
 
+    console.log('추첨 결과 조회 완료:', results.length + '명')
+
     const winners = results.filter(r => r.is_winner)
     const losers = results.filter(r => !r.is_winner)
-    
+
+    console.log('당첨자:', winners.length + '명, 미당첨자:', losers.length + '명')
+
     // 첫 번째 결과에서 공통 정보 추출
     const firstResult = results[0]
     const accommodationName = firstResult.application?.reservation_period?.accommodations?.name || '숙소'
     const checkInDate = firstResult.application?.reservation_period?.start_date || ''
     const checkOutDate = firstResult.application?.reservation_period?.end_date || ''
+
+    console.log('숙소 정보:', { accommodationName, checkInDate, checkOutDate })
 
     const emailResults = {
       winners: [] as any[],
@@ -104,9 +112,11 @@ export async function sendLotteryResultEmailsOnly(reservationPeriodId: string) {
     }
 
     // 당첨자 이메일 전송
+    console.log('당첨자 이메일 전송 시작...')
     for (const winner of winners) {
       try {
         if (winner.employee?.company_email) {
+          console.log('당첨자 이메일 전송:', winner.employee.name, winner.employee.company_email)
           const result = await sendLotteryWinnerEmail({
             to: winner.employee.company_email,
             employeeName: winner.employee.name,
@@ -115,25 +125,35 @@ export async function sendLotteryResultEmailsOnly(reservationPeriodId: string) {
             checkOutDate: formatDate(checkOutDate),
             rank: winner.rank,
           })
-          emailResults.winners.push({ 
-            employee: winner.employee.name, 
+          emailResults.winners.push({
+            employee: winner.employee.name,
             email: winner.employee.company_email,
-            result 
+            result
+          })
+        } else {
+          console.warn('당첨자 이메일 누락:', winner.employee?.name)
+          emailResults.errors.push({
+            employee: winner.employee?.name,
+            type: 'winner',
+            error: '이메일 주소 없음'
           })
         }
       } catch (error) {
-        emailResults.errors.push({ 
-          employee: winner.employee?.name, 
-          type: 'winner', 
-          error: error instanceof Error ? error.message : '알 수 없는 오류' 
+        console.error('당첨자 이메일 전송 실패:', winner.employee?.name, error)
+        emailResults.errors.push({
+          employee: winner.employee?.name,
+          type: 'winner',
+          error: error instanceof Error ? error.message : '알 수 없는 오류'
         })
       }
     }
 
     // 미당첨자 이메일 전송
+    console.log('미당첨자 이메일 전송 시작...')
     for (const loser of losers) {
       try {
         if (loser.employee?.company_email) {
+          console.log('미당첨자 이메일 전송:', loser.employee.name, loser.employee.company_email)
           const result = await sendLotteryLoserEmail({
             to: loser.employee.company_email,
             employeeName: loser.employee.name,
@@ -141,20 +161,34 @@ export async function sendLotteryResultEmailsOnly(reservationPeriodId: string) {
             totalApplicants: results.length,
             winners: winners.length,
           })
-          emailResults.losers.push({ 
-            employee: loser.employee.name, 
+          emailResults.losers.push({
+            employee: loser.employee.name,
             email: loser.employee.company_email,
-            result 
+            result
+          })
+        } else {
+          console.warn('미당첨자 이메일 누락:', loser.employee?.name)
+          emailResults.errors.push({
+            employee: loser.employee?.name,
+            type: 'loser',
+            error: '이메일 주소 없음'
           })
         }
       } catch (error) {
-        emailResults.errors.push({ 
-          employee: loser.employee?.name, 
-          type: 'loser', 
-          error: error instanceof Error ? error.message : '알 수 없는 오류' 
+        console.error('미당첨자 이메일 전송 실패:', loser.employee?.name, error)
+        emailResults.errors.push({
+          employee: loser.employee?.name,
+          type: 'loser',
+          error: error instanceof Error ? error.message : '알 수 없는 오류'
         })
       }
     }
+
+    console.log('이메일 전송 완료:', {
+      winners: emailResults.winners.length,
+      losers: emailResults.losers.length,
+      errors: emailResults.errors.length
+    })
 
     return {
       success: true,

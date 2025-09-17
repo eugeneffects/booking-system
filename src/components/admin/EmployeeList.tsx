@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { getEmployees, deleteEmployee, getDepartments } from '@/lib/actions/employee'
 import type { Employee, EmployeeListParams } from '@/types/employee'
+import { formatDate } from '@/lib/utils/date'
 
 interface EmployeeListProps {
   onEdit?: (employee: Employee) => void
@@ -251,7 +252,7 @@ export function EmployeeList({ onEdit, onAdd, refreshTrigger }: EmployeeListProp
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(employee.created_at).toLocaleDateString('ko-KR')}
+                        {formatDate(employee.created_at, 'korean')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         <div className="flex items-center justify-center gap-2">

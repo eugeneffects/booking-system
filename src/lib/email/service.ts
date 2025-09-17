@@ -38,8 +38,19 @@ export async function sendEmail({
   text?: string
 }) {
   try {
+    // SMTP 설정 확인
+    if (!emailConfig.smtp.auth.user || !emailConfig.smtp.auth.pass) {
+      throw new Error('SMTP 설정이 완료되지 않았습니다. SMTP_USER와 SMTP_PASSWORD 환경변수를 확인해주세요.')
+    }
+
+    console.log('📧 이메일 전송 시작:', {
+      to: Array.isArray(to) ? to.join(', ') : to,
+      subject,
+      from: `${emailConfig.from.name} <${emailConfig.from.email}>`
+    })
+
     const transport = getTransporter()
-    
+
     const mailOptions = {
       from: `${emailConfig.from.name} <${emailConfig.from.email}>`,
       to: Array.isArray(to) ? to.join(', ') : to,
@@ -49,11 +60,11 @@ export async function sendEmail({
     }
 
     const result = await transport.sendMail(mailOptions)
-    console.log('이메일 전송 성공:', result.messageId)
+    console.log('✅ 이메일 전송 성공:', result.messageId)
     return { success: true, messageId: result.messageId }
   } catch (error) {
-    console.error('이메일 전송 실패:', error)
-    return { success: false, error: error instanceof Error ? error.message : '알 수 없는 오류' }
+    console.error('❌ 이메일 전송 실패:', error)
+    throw error
   }
 }
 

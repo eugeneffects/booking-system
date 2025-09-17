@@ -5,34 +5,38 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  Shuffle, 
+import {
+  Shuffle,
   Calendar,
   Building,
   Eye,
   RotateCcw,
   Mail,
-  Home
+  Home,
+  Users,
+  Trash2
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
-import { 
-  runLottery, 
-  getLotteryResults, 
-  getLotteryStats, 
+import {
+  runLottery,
+  getLotteryResults,
+  getLotteryStats,
   checkLotteryEligibility,
-  resetLottery 
+  resetLottery
 } from '@/lib/actions/lottery'
 import { sendLotteryResultEmailsOnly } from '@/lib/actions/email'
 import { getReservationPeriods } from '@/lib/actions/accommodation'
-import type { 
-  LotteryResultWithDetails, 
-  LotteryStats, 
-  LotteryEligibility 
+import { getApplications, deleteApplications } from '@/lib/actions/application'
+import type {
+  LotteryResultWithDetails,
+  LotteryStats,
+  LotteryEligibility
 } from '@/types/lottery'
 import type { ReservationPeriod } from '@/types/accommodation'
+import type { Application } from '@/types/application'
 import { formatDate } from '@/lib/utils/date'
 
 interface LotteryManagementProps {
@@ -45,8 +49,11 @@ export function LotteryManagement({ currentUserId }: LotteryManagementProps) {
   const [results, setResults] = useState<LotteryResultWithDetails[]>([])
   const [stats, setStats] = useState<LotteryStats | null>(null)
   const [eligibility, setEligibility] = useState<LotteryEligibility | null>(null)
+  const [applications, setApplications] = useState<Application[]>([])
+  const [selectedApplications, setSelectedApplications] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSendingEmails, setIsSendingEmails] = useState(false)
+  const [isDeletingApplications, setIsDeletingApplications] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [emailResult, setEmailResult] = useState<
     | { success: boolean; summary?: { winnersNotified?: number; losersNotified?: number; errors?: number } }
@@ -71,6 +78,7 @@ export function LotteryManagement({ currentUserId }: LotteryManagementProps) {
     try {
       setIsLoading(true)
       setError(null)
+      setSelectedApplications([])
 
       // 추첨 가능 여부 확인
       const eligibilityResult = await checkLotteryEligibility(period.id)
@@ -79,6 +87,15 @@ export function LotteryManagement({ currentUserId }: LotteryManagementProps) {
       // 추첨 결과 조회
       const resultsData = await getLotteryResults(period.id)
       setResults(resultsData)
+
+      // 신청자 목록 조회
+      const applicationsData = await getApplications({
+        reservation_period_id: period.id,
+        include_employee: true,
+        include_period: false,
+        limit: 1000
+      })
+      setApplications(applicationsData.applications)
 
       // 통계 조회
       if (resultsData.length > 0) {
@@ -167,6 +184,57 @@ export function LotteryManagement({ currentUserId }: LotteryManagementProps) {
   const handlePeriodSelect = (period: ReservationPeriod) => {
     setSelectedPeriod(period)
     loadPeriodData(period)
+  }
+
+  // 신청 선택/해제
+  const handleApplicationSelect = (applicationId: string) => {
+    setSelectedApplications(prev =>
+      prev.includes(applicationId)
+        ? prev.filter(id => id !== applicationId)
+        : [...prev, applicationId]
+    )
+  }
+
+  // 전체 선택/해제
+  const handleSelectAll = () => {
+    if (selectedApplications.length === applications.length) {
+      setSelectedApplications([])
+    } else {
+      setSelectedApplications(applications.map(app => app.id))
+    }
+  }
+
+  // 선택된 신청 삭제
+  const handleDeleteSelected = async () => {
+    if (selectedApplications.length === 0) {
+      alert('삭제할 신청을 선택해주세요.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `선택된 ${selectedApplications.length}개의 신청을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      setIsDeletingApplications(true)
+      setError(null)
+
+      await deleteApplications(selectedApplications)
+
+      // 신청 목록 다시 로드
+      if (selectedPeriod) {
+        await loadPeriodData(selectedPeriod)
+      }
+
+      alert('선택된 신청이 삭제되었습니다.')
+    } catch (err) {
+      console.error('신청 삭제 실패:', err)
+      setError(err instanceof Error ? err.message : '신청 삭제 중 오류가 발생했습니다.')
+    } finally {
+      setIsDeletingApplications(false)
+    }
   }
 
   useEffect(() => {
@@ -423,6 +491,113 @@ export function LotteryManagement({ currentUserId }: LotteryManagementProps) {
           </div>
         </Card>
       </div>
+
+      {/* 신청자 목록 */}
+      {selectedPeriod && applications.length > 0 && (
+        <Card>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  신청자 목록 ({applications.length}명)
+                </h3>
+              </div>
+
+              {/* 선택 삭제 버튼 */}
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-gray-600">
+                  {selectedApplications.length > 0 && (
+                    <span>{selectedApplications.length}개 선택됨</span>
+                  )}
+                </div>
+
+                {selectedApplications.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDeleteSelected}
+                    disabled={isDeletingApplications}
+                    isLoading={isDeletingApplications}
+                    className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    선택 삭제
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* 전체 선택 체크박스 */}
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={applications.length > 0 && selectedApplications.length === applications.length}
+                  onChange={handleSelectAll}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  전체 선택 ({applications.length}명)
+                </span>
+              </label>
+            </div>
+
+            {/* 신청자 목록 */}
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {applications.map((application) => (
+                <div
+                  key={application.id}
+                  className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                    selectedApplications.includes(application.id)
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                  onClick={() => handleApplicationSelect(application.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedApplications.includes(application.id)}
+                        onChange={() => handleApplicationSelect(application.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {application.employee?.name}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {application.employee?.employee_number} · {application.employee?.department}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-sm text-gray-600">
+                        신청일: {formatDate(application.applied_at, 'korean')}
+                      </div>
+                      <div className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                        application.status === 'pending'
+                          ? 'bg-blue-100 text-blue-800'
+                          : application.status === 'selected'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {application.status === 'pending' ? '대기중'
+                          : application.status === 'selected' ? '당첨'
+                          : '미당첨'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* 추첨 결과 목록 */}
       {results.length > 0 && (

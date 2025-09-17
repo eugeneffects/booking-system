@@ -58,8 +58,14 @@ export async function getAccommodations(params: AccommodationListParams = {}): P
 
     const totalPages = Math.ceil((count || 0) / limit)
 
+    // 임시 해결책: 응답에서 SONOVEL을 RISOM으로 매핑
+    const accommodations = (data || []).map(acc => ({
+      ...acc,
+      type: acc.type === 'SONOVEL' ? 'RISOM' : acc.type
+    }))
+
     return {
-      accommodations: data || [],
+      accommodations,
       total: count || 0,
       page,
       limit,
@@ -89,7 +95,11 @@ export async function getAccommodation(id: string): Promise<Accommodation | null
       return null
     }
 
-    return data
+    // 임시 해결책: 응답에서 SONOVEL을 RISOM으로 매핑
+    return {
+      ...data,
+      type: data.type === 'SONOVEL' ? 'RISOM' : data.type
+    } as Accommodation
   } catch (error) {
     console.error('숙소 조회 오류:', error)
     return null
@@ -114,12 +124,16 @@ export async function createAccommodation(data: CreateAccommodationData): Promis
       throw new Error('이미 존재하는 숙소명입니다.')
     }
 
+    // 임시 해결책: RISOM을 SONOVEL로 매핑 (데이터베이스 마이그레이션 전까지)
+    const dbData = {
+      ...data,
+      type: data.type === 'RISOM' ? 'SONOVEL' as any : data.type,
+      is_active: data.is_active ?? true
+    }
+
     const { data: newAccommodation, error } = await supabase
       .from('accommodations')
-      .insert({
-        ...data,
-        is_active: data.is_active ?? true
-      })
+      .insert(dbData)
       .select()
       .single()
 
@@ -128,7 +142,11 @@ export async function createAccommodation(data: CreateAccommodationData): Promis
       throw new Error(error.message)
     }
 
-    return newAccommodation
+    // 임시 해결책: 응답에서 SONOVEL을 RISOM으로 다시 매핑
+    return {
+      ...newAccommodation,
+      type: newAccommodation.type === 'SONOVEL' ? 'RISOM' : newAccommodation.type
+    } as Accommodation
   } catch (error) {
     console.error('숙소 생성 오류:', error)
     throw error
@@ -156,12 +174,16 @@ export async function updateAccommodation(id: string, data: UpdateAccommodationD
       }
     }
 
+    // 임시 해결책: RISOM을 SONOVEL로 매핑 (데이터베이스 마이그레이션 전까지)
+    const dbData = {
+      ...data,
+      type: data.type === 'RISOM' ? 'SONOVEL' as any : data.type,
+      updated_at: new Date().toISOString()
+    }
+
     const { data: updatedAccommodation, error } = await supabase
       .from('accommodations')
-      .update({
-        ...data,
-        updated_at: new Date().toISOString()
-      })
+      .update(dbData)
       .eq('id', id)
       .select()
       .single()
@@ -171,7 +193,11 @@ export async function updateAccommodation(id: string, data: UpdateAccommodationD
       throw new Error(error.message)
     }
 
-    return updatedAccommodation
+    // 임시 해결책: 응답에서 SONOVEL을 RISOM으로 다시 매핑
+    return {
+      ...updatedAccommodation,
+      type: updatedAccommodation.type === 'SONOVEL' ? 'RISOM' : updatedAccommodation.type
+    } as Accommodation
   } catch (error) {
     console.error('숙소 수정 오류:', error)
     throw error
@@ -185,21 +211,37 @@ export async function deleteAccommodation(id: string): Promise<void> {
   try {
     const supabase = createServiceRoleClient()
 
-    // 관련된 예약 기간이 있는지 확인
-    const { data: periods } = await supabase
+    // 관련된 활성 예약 기간 중 신청 기한이 지나지 않은 것들 확인
+    const { data: activePeriods } = await supabase
       .from('reservation_periods')
-      .select('id')
+      .select('id, application_end')
       .eq('accommodation_id', id)
       .eq('is_active', true)
 
-    if (periods && periods.length > 0) {
-      throw new Error('활성화된 예약 기간이 있는 숙소는 삭제할 수 없습니다.')
+    if (activePeriods && activePeriods.length > 0) {
+      const now = new Date()
+      const activeOngoingPeriods = activePeriods.filter(period =>
+        new Date(period.application_end) > now
+      )
+
+      if (activeOngoingPeriods.length > 0) {
+        // 진행 중인 예약 기간이 있는지 신청 확인
+        const periodIds = activeOngoingPeriods.map(p => p.id)
+        const { data: applications } = await supabase
+          .from('applications')
+          .select('id')
+          .in('reservation_period_id', periodIds)
+
+        if (applications && applications.length > 0) {
+          throw new Error('신청 기한이 진행 중인 예약 기간에 신청이 있는 숙소는 삭제할 수 없습니다.')
+        }
+      }
     }
 
     // 실제로는 비활성화 처리
     const { error } = await supabase
       .from('accommodations')
-      .update({ 
+      .update({
         is_active: false,
         updated_at: new Date().toISOString()
       })
@@ -211,6 +253,61 @@ export async function deleteAccommodation(id: string): Promise<void> {
     }
   } catch (error) {
     console.error('숙소 삭제 오류:', error)
+    throw error
+  }
+}
+
+/**
+ * 숙소 완전 삭제 (물리적 삭제)
+ */
+export async function permanentDeleteAccommodation(id: string): Promise<void> {
+  try {
+    const supabase = createServiceRoleClient()
+
+    // 관련된 예약 기간 중 신청 기한이 진행 중인 것들 확인
+    const { data: periods } = await supabase
+      .from('reservation_periods')
+      .select('id, application_end')
+      .eq('accommodation_id', id)
+
+    if (periods && periods.length > 0) {
+      const now = new Date()
+      const ongoingPeriods = periods.filter(period =>
+        new Date(period.application_end) > now
+      )
+
+      if (ongoingPeriods.length > 0) {
+        // 진행 중인 예약 기간이 있는지 신청 확인
+        const periodIds = ongoingPeriods.map(p => p.id)
+        const { data: applications } = await supabase
+          .from('applications')
+          .select('id')
+          .in('reservation_period_id', periodIds)
+
+        if (applications && applications.length > 0) {
+          throw new Error('신청 기한이 진행 중인 예약 기간에 신청이 있는 숙소는 완전 삭제할 수 없습니다.')
+        }
+      }
+
+      // 만료된 예약 기간들은 먼저 삭제
+      await supabase
+        .from('reservation_periods')
+        .delete()
+        .eq('accommodation_id', id)
+    }
+
+    // 숙소 완전 삭제
+    const { error } = await supabase
+      .from('accommodations')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('숙소 완전 삭제 실패:', error)
+      throw new Error(error.message)
+    }
+  } catch (error) {
+    console.error('숙소 완전 삭제 오류:', error)
     throw error
   }
 }
@@ -504,20 +601,34 @@ export async function deleteReservationPeriod(id: string): Promise<void> {
   try {
     const supabase = createServiceRoleClient()
 
-    // 관련된 신청이 있는지 확인
-    const { data: applications } = await supabase
-      .from('applications')
-      .select('id')
-      .eq('reservation_period_id', id)
+    // 예약 기간 정보 조회
+    const { data: period } = await supabase
+      .from('reservation_periods')
+      .select('application_end')
+      .eq('id', id)
+      .single()
 
-    if (applications && applications.length > 0) {
-      throw new Error('신청이 있는 예약 기간은 삭제할 수 없습니다.')
+    if (period) {
+      const now = new Date()
+      const applicationEnd = new Date(period.application_end)
+
+      // 신청 기한이 아직 지나지 않은 경우에만 신청 확인
+      if (applicationEnd > now) {
+        const { data: applications } = await supabase
+          .from('applications')
+          .select('id')
+          .eq('reservation_period_id', id)
+
+        if (applications && applications.length > 0) {
+          throw new Error('신청 기한이 진행 중인 예약 기간에 신청이 있어 삭제할 수 없습니다.')
+        }
+      }
     }
 
     // 실제로는 비활성화 처리
     const { error } = await supabase
       .from('reservation_periods')
-      .update({ 
+      .update({
         is_active: false,
         updated_at: new Date().toISOString()
       })

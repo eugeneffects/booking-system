@@ -12,7 +12,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "숙소예약 추첨 시스템",
   description: "회사 임직원을 위한 숙소 예약 신청 및 추첨 시스템",
-  keywords: ["숙소예약", "추첨", "아난티", "소노벨"],
+  keywords: ["숙소예약", "추첨", "아난티", "리솜"],
   authors: [{ name: "Company IT Team" }],
   manifest: "/manifest.json",
   appleWebApp: {

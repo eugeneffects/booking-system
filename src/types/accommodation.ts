@@ -5,7 +5,7 @@
 export interface Accommodation {
   id: string
   name: string
-  type: 'ANANTI' | 'SONOBEL' | 'OTHER'
+  type: 'ANANTI' | 'RISOM' | 'OTHER'
   restriction_years: number
   description: string | null
   is_active: boolean
@@ -16,7 +16,7 @@ export interface Accommodation {
 
 export interface CreateAccommodationData {
   name: string
-  type: 'ANANTI' | 'SONOBEL' | 'OTHER'
+  type: 'ANANTI' | 'RISOM' | 'OTHER'
   restriction_years: number
   description?: string
   is_active?: boolean
@@ -25,7 +25,7 @@ export interface CreateAccommodationData {
 
 export interface UpdateAccommodationData {
   name?: string
-  type?: 'ANANTI' | 'SONOBEL' | 'OTHER'
+  type?: 'ANANTI' | 'RISOM' | 'OTHER'
   restriction_years?: number
   description?: string
   is_active?: boolean
@@ -75,7 +75,7 @@ export interface AccommodationListParams {
   page?: number
   limit?: number
   search?: string
-  type?: 'ANANTI' | 'SONOBEL' | 'OTHER' | ''
+  type?: 'ANANTI' | 'RISOM' | 'OTHER' | ''
   is_active?: boolean
 }
 
@@ -106,12 +106,12 @@ export interface ReservationPeriodListResponse {
 
 export const ACCOMMODATION_TYPES = {
   ANANTI: '아난티',
-  SONOBEL: '소노벨',
+  RISOM: '리솜',
   OTHER: '기타'
 } as const
 
 export const ACCOMMODATION_TYPE_OPTIONS = [
   { value: 'ANANTI', label: '아난티' },
-  { value: 'SONOBEL', label: '소노벨' },
+  { value: 'RISOM', label: '리솜' },
   { value: 'OTHER', label: '기타' }
 ] as const

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { getReservationPeriods, deleteReservationPeriod } from '@/lib/actions/accommodation'
 import type { ReservationPeriod, ReservationPeriodListParams, Accommodation } from '@/types/accommodation'
+import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil } from '@/lib/utils/date'
 
 interface ReservationPeriodListProps {
   accommodation?: Accommodation | null // 특정 숙소의 기간만 조회할 때
@@ -81,25 +82,6 @@ export function ReservationPeriodList({ accommodation, onEdit, onAdd, refreshTri
     setPage(1)
   }
 
-  // 날짜 포맷팅
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
-
-  // 날짜 시간 포맷팅
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
 
   // 신청 상태 확인
   const getApplicationStatus = (period: ReservationPeriod) => {
@@ -244,12 +226,12 @@ export function ReservationPeriodList({ accommodation, onEdit, onAdd, refreshTri
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-400" />
                           <span className="font-medium">숙박 기간:</span>
-                          <span>{formatDate(period.start_date)} ~ {formatDate(period.end_date)}</span>
+                          <span>{formatDateUtil(period.start_date)} ~ {formatDateUtil(period.end_date)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-gray-400" />
                           <span className="font-medium">신청 기간:</span>
-                          <span>{formatDateTime(period.application_start)} ~ {formatDateTime(period.application_end)}</span>
+                          <span>{formatDateTimeUtil(period.application_start)} ~ {formatDateTimeUtil(period.application_end)}</span>
                         </div>
                       </div>
                       <div className="space-y-2">
@@ -258,7 +240,7 @@ export function ReservationPeriodList({ accommodation, onEdit, onAdd, refreshTri
                           <span className="ml-2">{period.available_rooms}명</span>
                         </div>
                         <div className="text-xs text-gray-500">
-                          등록일: {formatDate(period.created_at)}
+                          등록일: {formatDateUtil(period.created_at, 'korean')}
                         </div>
                       </div>
                     </div>

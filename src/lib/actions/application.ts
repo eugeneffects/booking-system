@@ -133,16 +133,10 @@ export async function getApplications(params: ApplicationListParams = {}): Promi
 export async function getApplication(id: string): Promise<Application | null> {
   try {
     const supabase = createServiceRoleClient()
-    
+
     const { data, error } = await supabase
       .from('applications')
-      .select(`
-        *,
-        reservation_periods (
-          *,
-          accommodations (*)
-        )
-      `)
+      .select('*')
       .eq('id', id)
       .single()
 
@@ -151,13 +145,37 @@ export async function getApplication(id: string): Promise<Application | null> {
       return null
     }
 
+    let application = data
+
+    // 예약 기간 정보를 별도로 조회
+    if (application.reservation_period_id) {
+      const { data: period } = await supabase
+        .from('reservation_periods')
+        .select(`
+          *,
+          accommodations (*)
+        `)
+        .eq('id', application.reservation_period_id)
+        .single()
+
+      application.reservation_period = period
+    }
+
+    // 직원 정보를 별도로 조회 (이메일 발송용)
+    if (application.employee_id) {
+      const { data: employee } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('id', application.employee_id)
+        .single()
+
+      application.employee = employee
+    }
+
     return {
-      ...data,
-      employee: undefined,
-      reservation_period: {
-        ...data.reservation_periods,
-        accommodations: data.reservation_periods.accommodations
-      }
+      ...application,
+      employee: application.employee,
+      reservation_period: application.reservation_period
     }
   } catch (error) {
     console.error('신청 조회 오류:', error)
@@ -383,16 +401,10 @@ export async function cancelApplication(id: string): Promise<void> {
 export async function getUserApplications(employeeId: string): Promise<Application[]> {
   try {
     const supabase = createServiceRoleClient()
-    
+
     const { data, error } = await supabase
       .from('applications')
-      .select(`
-        *,
-        reservation_periods (
-          *,
-          accommodations (*)
-        )
-      `)
+      .select('*')
       .eq('employee_id', employeeId)
       .order('applied_at', { ascending: false })
 
@@ -401,13 +413,27 @@ export async function getUserApplications(employeeId: string): Promise<Applicati
       return []
     }
 
-    return (data || []).map(app => ({
-      ...app,
-      reservation_period: {
-        ...app.reservation_periods,
-        accommodations: app.reservation_periods.accommodations
-      }
-    }))
+    let applications = data || []
+
+    // 예약 기간 정보를 별도로 조회
+    if (applications.length > 0) {
+      const periodIds = [...new Set(applications.map(app => app.reservation_period_id))]
+      const { data: periods } = await supabase
+        .from('reservation_periods')
+        .select(`
+          *,
+          accommodations (*)
+        `)
+        .in('id', periodIds)
+
+      applications = applications.map(app => ({
+        ...app,
+        employee: undefined,
+        reservation_period: periods?.find(period => period.id === app.reservation_period_id)
+      }))
+    }
+
+    return applications
   } catch (error) {
     console.error('사용자 신청 목록 조회 오류:', error)
     return []
@@ -420,7 +446,7 @@ export async function getUserApplications(employeeId: string): Promise<Applicati
 export async function getApplicationStats(reservationPeriodId: string) {
   try {
     const supabase = createServiceRoleClient()
-    
+
     const { data, error } = await supabase
       .from('applications')
       .select('status')
@@ -441,6 +467,90 @@ export async function getApplicationStats(reservationPeriodId: string) {
     return stats
   } catch (error) {
     console.error('신청 통계 조회 오류:', error)
+    throw error
+  }
+}
+
+/**
+ * 다중 신청 삭제
+ */
+export async function deleteApplications(applicationIds: string[]): Promise<void> {
+  try {
+    const supabase = createServiceRoleClient()
+
+    if (applicationIds.length === 0) {
+      throw new Error('삭제할 신청이 선택되지 않았습니다.')
+    }
+
+    // 선택된 신청들의 상태 확인
+    const { data: applications, error: fetchError } = await supabase
+      .from('applications')
+      .select(`
+        id,
+        status,
+        reservation_period_id,
+        reservation_periods!inner(application_end)
+      `)
+      .in('id', applicationIds)
+
+    if (fetchError) {
+      console.error('신청 조회 실패:', fetchError)
+      throw new Error(fetchError.message)
+    }
+
+    // 삭제 가능한 신청들만 필터링
+    const deletableIds: string[] = []
+    const errors: string[] = []
+
+    for (const app of applications) {
+      // 추첨이 완료된 신청은 삭제 불가
+      if (app.status !== 'pending') {
+        errors.push('추첨이 완료된 신청은 삭제할 수 없습니다.')
+        continue
+      }
+
+      // 신청 마감 후에는 삭제 불가 (예약 기간 정보가 있는 경우에만 확인)
+      // Supabase 조인 결과 구조에 따라 처리
+      let applicationEnd = null
+      if (app.reservation_periods) {
+        if (Array.isArray(app.reservation_periods) && app.reservation_periods.length > 0) {
+          applicationEnd = app.reservation_periods[0].application_end
+        } else if (typeof app.reservation_periods === 'object' && app.reservation_periods.application_end) {
+          applicationEnd = app.reservation_periods.application_end
+        }
+      }
+
+      if (applicationEnd && new Date() > new Date(applicationEnd)) {
+        errors.push('신청 기간이 종료되어 삭제할 수 없습니다.')
+        continue
+      }
+
+      deletableIds.push(app.id)
+    }
+
+    if (deletableIds.length === 0) {
+      throw new Error(errors.join(' '))
+    }
+
+    // 삭제 실행
+    const { error: deleteError } = await supabase
+      .from('applications')
+      .delete()
+      .in('id', deletableIds)
+
+    if (deleteError) {
+      console.error('신청 삭제 실패:', deleteError)
+      throw new Error(deleteError.message)
+    }
+
+    // 부분 삭제의 경우 경고 메시지 포함
+    if (deletableIds.length < applicationIds.length) {
+      const skipped = applicationIds.length - deletableIds.length
+      throw new Error(`${deletableIds.length}개 삭제 완료. ${skipped}개는 삭제할 수 없었습니다.`)
+    }
+
+  } catch (error) {
+    console.error('다중 신청 삭제 오류:', error)
     throw error
   }
 }

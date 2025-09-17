@@ -34,7 +34,7 @@ const accommodations = [
   },
   {
     id: '2',
-    name: '소노벨 비발디파크',
+    name: '리솜 비발디파크',
     type: 'SONOVEL',
     description: '사계절 즐길 수 있는 홍천의 종합 리조트',
     restrictionYears: 1,

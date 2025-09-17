@@ -209,42 +209,79 @@ export default function ApplicationsPage() {
                   
                   return (
                     <Card key={period.id} className={`transition-all ${canApply ? 'border-blue-300 shadow-md' : 'opacity-75'}`}>
-                      <div className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                              {period.accommodations?.name}
-                            </h3>
-                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                              <div className="flex items-center gap-1">
-                                <Building className="h-4 w-4" />
-                                <span>{period.accommodations?.type}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Users className="h-4 w-4" />
-                                <span>모집인원 {period.available_rooms}명</span>
-                              </div>
+                      <div className="overflow-hidden">
+                        {/* 숙소 이미지 */}
+                        {period.accommodations?.image_urls && period.accommodations.image_urls.length > 0 && (
+                          <div className="relative w-full h-48">
+                            <img
+                              src={period.accommodations.image_urls[0]}
+                              alt={period.accommodations.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                            {/* 이미지 위에 상태 배지 */}
+                            <div className="absolute top-4 right-4 flex flex-col gap-2">
+                              {canApply && (
+                                <span className="bg-green-100 text-green-800 text-xs font-medium px-3 py-1 rounded-full backdrop-blur-sm bg-opacity-90">
+                                  신청가능
+                                </span>
+                              )}
+                              {hasApplied && (
+                                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full backdrop-blur-sm bg-opacity-90">
+                                  신청완료
+                                </span>
+                              )}
+                              {hoursLeft > 0 && hoursLeft <= 24 && (
+                                <span className="bg-orange-100 text-orange-800 text-xs font-medium px-3 py-1 rounded-full backdrop-blur-sm bg-opacity-90">
+                                  {hoursLeft}시간 남음
+                                </span>
+                              )}
                             </div>
                           </div>
-                          
-                          <div className="flex flex-col gap-2">
-                            {canApply && (
-                              <span className="bg-green-100 text-green-800 text-xs font-medium px-3 py-1 rounded-full">
-                                신청가능
-                              </span>
-                            )}
-                            {hasApplied && (
-                              <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
-                                신청완료
-                              </span>
-                            )}
-                            {hoursLeft > 0 && hoursLeft <= 24 && (
-                              <span className="bg-orange-100 text-orange-800 text-xs font-medium px-3 py-1 rounded-full">
-                                {hoursLeft}시간 남음
-                              </span>
+                        )}
+
+                        <div className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                {period.accommodations?.name}
+                              </h3>
+                              <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                                <div className="flex items-center gap-1">
+                                  <Building className="h-4 w-4" />
+                                  <span>{period.accommodations?.type}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Users className="h-4 w-4" />
+                                  <span>모집인원 {period.available_rooms}명</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 이미지가 없는 경우 기존 위치에 배지 표시 */}
+                            {(!period.accommodations?.image_urls || period.accommodations.image_urls.length === 0) && (
+                              <div className="flex flex-col gap-2">
+                                {canApply && (
+                                  <span className="bg-green-100 text-green-800 text-xs font-medium px-3 py-1 rounded-full">
+                                    신청가능
+                                  </span>
+                                )}
+                                {hasApplied && (
+                                  <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
+                                    신청완료
+                                  </span>
+                                )}
+                                {hoursLeft > 0 && hoursLeft <= 24 && (
+                                  <span className="bg-orange-100 text-orange-800 text-xs font-medium px-3 py-1 rounded-full">
+                                    {hoursLeft}시간 남음
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
-                        </div>
 
                         {/* 체크인/체크아웃 날짜 - 더 강조 */}
                         <div className="bg-blue-50 rounded-lg p-4 mb-4">
@@ -283,6 +320,7 @@ export default function ApplicationsPage() {
                             </Button>
                           )}
                         </div>
+                        </div>
                       </div>
                     </Card>
                   )
@@ -314,51 +352,71 @@ export default function ApplicationsPage() {
               <div className="space-y-4">
                 {applications.map((application) => (
                   <Card key={application.id} hoverable>
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-semibold text-gray-900">
-                              {application.reservation_period?.accommodations?.name}
-                            </h3>
-                            {getStatusBadge(application.status)}
+                    <div className="overflow-hidden">
+                      <div className="flex">
+                        {/* 숙소 이미지 */}
+                        {application.reservation_period?.accommodations?.image_urls &&
+                         application.reservation_period.accommodations.image_urls.length > 0 && (
+                          <div className="w-32 h-32 flex-shrink-0">
+                            <img
+                              src={application.reservation_period.accommodations.image_urls[0]}
+                              alt={application.reservation_period.accommodations.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
                           </div>
-                          
-                          <div className="space-y-1 text-sm text-gray-600">
-                            <div className="flex items-center gap-2">
-                              <Building className="h-4 w-4" />
-                              <span>{application.reservation_period?.accommodations?.type}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              <span>
-                                {application.reservation_period?.start_date && 
-                                 application.reservation_period?.end_date && (
-                                  <>
-                                    {formatDate(application.reservation_period.start_date)} ~ {formatDate(application.reservation_period.end_date)}
-                                  </>
-                                )}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4" />
-                              <span>신청일: {formatDate(application.applied_at, 'datetime')}</span>
+                        )}
+
+                        <div className="flex-1 p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="font-semibold text-gray-900">
+                                  {application.reservation_period?.accommodations?.name}
+                                </h3>
+                                {getStatusBadge(application.status)}
+                              </div>
+
+                              <div className="space-y-1 text-sm text-gray-600">
+                                <div className="flex items-center gap-2">
+                                  <Building className="h-4 w-4" />
+                                  <span>{application.reservation_period?.accommodations?.type}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>
+                                    {application.reservation_period?.start_date &&
+                                     application.reservation_period?.end_date && (
+                                      <>
+                                        {formatDate(application.reservation_period.start_date)} ~ {formatDate(application.reservation_period.end_date)}
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4" />
+                                  <span>신청일: {formatDate(application.applied_at, 'datetime')}</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
+
+                          {application.status === 'selected' && (
+                            <Alert variant="success" title="축하합니다!" className="mt-4">
+                              <p>숙소 예약에 당첨되셨습니다. 자세한 안내는 이메일로 발송됩니다.</p>
+                            </Alert>
+                          )}
+
+                          {application.status === 'pending' && (
+                            <Alert variant="info" title="신청 완료" className="mt-4">
+                              <p>신청이 완료되었습니다. 추첨 결과는 신청 마감 후 안내됩니다.</p>
+                            </Alert>
+                          )}
                         </div>
                       </div>
-
-                      {application.status === 'selected' && (
-                        <Alert variant="success" title="축하합니다!" className="mt-4">
-                          <p>숙소 예약에 당첨되셨습니다. 자세한 안내는 이메일로 발송됩니다.</p>
-                        </Alert>
-                      )}
-
-                      {application.status === 'pending' && (
-                        <Alert variant="info" title="신청 완료" className="mt-4">
-                          <p>신청이 완료되었습니다. 추첨 결과는 신청 마감 후 안내됩니다.</p>
-                        </Alert>
-                      )}
                     </div>
                   </Card>
                 ))}

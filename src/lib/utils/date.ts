@@ -9,19 +9,23 @@ import { ko } from 'date-fns/locale'
 /**
  * 날짜를 한국어 형식으로 포맷팅
  * @param date - Date 객체 또는 ISO 문자열
- * @param formatStr - 포맷 문자열 (기본값: 'yyyy년 MM월 dd일')
+ * @param formatStr - 포맷 문자열 (기본값: 'yyyy/MM/dd')
  * @returns 포맷팅된 날짜 문자열
  */
-export function formatDate(date: Date | string, formatStr = 'yyyy년 MM월 dd일'): string {
+export function formatDate(date: Date | string, formatStr = 'yyyy/MM/dd'): string {
   const dateObj = typeof date === 'string' ? parseISO(date) : date
   // 사람이 읽기 쉬운 별칭 지원
   const resolvedFormat =
     formatStr === 'datetime'
-      ? 'yyyy년 MM월 dd일 HH:mm'
+      ? 'yyyy/MM/dd HH:mm'
       : formatStr === 'date'
-        ? 'yyyy년 MM월 dd일'
+        ? 'yyyy/MM/dd'
         : formatStr === 'time'
           ? 'HH:mm'
+        : formatStr === 'korean'
+          ? 'yyyy년 MM월 dd일'
+        : formatStr === 'korean-datetime'
+          ? 'yyyy년 MM월 dd일 HH:mm'
           : formatStr
   return format(dateObj, resolvedFormat, { locale: ko })
 }
@@ -33,7 +37,7 @@ export function formatDate(date: Date | string, formatStr = 'yyyy년 MM월 dd일
  */
 export function formatDateTime(date: Date | string): string {
   const dateObj = typeof date === 'string' ? parseISO(date) : date
-  return format(dateObj, 'yyyy년 MM월 dd일 HH:mm', { locale: ko })
+  return format(dateObj, 'yyyy/MM/dd HH:mm', { locale: ko })
 }
 
 /**
@@ -72,10 +76,10 @@ export function getRestrictionStartDate(years: number): Date {
  * 예약 기간 표시용 문자열 생성
  * @param startDate - 시작일
  * @param endDate - 종료일
- * @returns '2024년 3월 1일 ~ 3월 3일' 형식의 문자열
+ * @returns '2024/03/01 ~ 03/03' 형식의 문자열
  */
 export function formatReservationPeriod(startDate: Date | string, endDate: Date | string): string {
-  const start = formatDate(startDate, 'yyyy년 MM월 dd일')
-  const end = formatDate(endDate, 'MM월 dd일')
+  const start = formatDate(startDate, 'yyyy/MM/dd')
+  const end = formatDate(endDate, 'MM/dd')
   return `${start} ~ ${end}`
 }

@@ -24,7 +24,7 @@ interface AccommodationFormProps {
 export function AccommodationForm({ accommodation, onSuccess, onCancel }: AccommodationFormProps) {
   const [formData, setFormData] = useState<{
     name: string
-    type: 'ANANTI' | 'SONOBEL' | 'OTHER'
+    type: 'ANANTI' | 'RISOM' | 'OTHER'
     restriction_years: number
     description: string
     is_active: boolean
@@ -215,7 +215,7 @@ export function AccommodationForm({ accommodation, onSuccess, onCancel }: Accomm
               ))}
             </select>
             <p className="mt-1 text-xs text-gray-500">
-              아난티: 3년 제한, 소노벨: 1년 제한이 일반적입니다.
+              아난티: 3년 제한, 리솜: 1년 제한이 일반적입니다.
             </p>
           </div>
 

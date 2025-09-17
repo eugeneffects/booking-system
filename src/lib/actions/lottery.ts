@@ -401,8 +401,40 @@ export async function checkLotteryEligibility(reservationPeriodId: string): Prom
 export async function resetLottery(reservationPeriodId: string): Promise<void> {
   try {
     const supabase = createServiceRoleClient()
-    
-    // 추첨 결과 삭제
+
+    console.log('추첨 재설정 시작:', reservationPeriodId)
+
+    // 예약 기간 존재 확인
+    const { data: period, error: periodError } = await supabase
+      .from('reservation_periods')
+      .select('id, start_date, accommodation_id')
+      .eq('id', reservationPeriodId)
+      .single()
+
+    if (periodError || !period) {
+      throw new Error('예약 기간을 찾을 수 없습니다.')
+    }
+
+    console.log('예약 기간 확인 완료:', period)
+
+    // 1. 당첨 이력 삭제 (먼저 실행)
+    try {
+      const { error: historyError } = await supabase
+        .from('winners_history')
+        .delete()
+        .eq('accommodation_id', period.accommodation_id)
+        .eq('check_in_date', period.start_date)
+
+      if (historyError) {
+        console.warn('당첨 이력 삭제 실패 (계속 진행):', historyError.message)
+      } else {
+        console.log('당첨 이력 삭제 완료')
+      }
+    } catch (historyError) {
+      console.warn('당첨 이력 삭제 중 오류 (계속 진행):', historyError)
+    }
+
+    // 2. 추첨 결과 삭제
     const { error: resultsError } = await supabase
       .from('lottery_results')
       .delete()
@@ -412,7 +444,9 @@ export async function resetLottery(reservationPeriodId: string): Promise<void> {
       throw new Error(`추첨 결과 삭제 실패: ${resultsError.message}`)
     }
 
-    // 신청 상태를 pending으로 되돌리기
+    console.log('추첨 결과 삭제 완료')
+
+    // 3. 신청 상태를 pending으로 되돌리기
     const { error: appsError } = await supabase
       .from('applications')
       .update({ status: 'pending' })
@@ -422,20 +456,8 @@ export async function resetLottery(reservationPeriodId: string): Promise<void> {
       throw new Error(`신청 상태 복원 실패: ${appsError.message}`)
     }
 
-    // 당첨 이력 삭제 (해당 기간의 체크인 날짜로)
-    const { data: period } = await supabase
-      .from('reservation_periods')
-      .select('start_date, accommodation_id')
-      .eq('id', reservationPeriodId)
-      .single()
-
-    if (period) {
-      await supabase
-        .from('winners_history')
-        .delete()
-        .eq('accommodation_id', period.accommodation_id)
-        .eq('check_in_date', period.start_date)
-    }
+    console.log('신청 상태 복원 완료')
+    console.log('추첨 재설정 완료:', reservationPeriodId)
   } catch (error) {
     console.error('추첨 재설정 오류:', error)
     throw error

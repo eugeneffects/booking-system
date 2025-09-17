@@ -1,324 +1,381 @@
 /**
- * 신청 목록 컴포넌트
+ * 신청자 목록 컴포넌트
  */
 
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, Eye, Calendar, Building, User, Filter, RefreshCw } from 'lucide-react'
+import { Search, FileText, Calendar, Building, Trash2, Filter } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
-import { getApplications, getApplicationStats } from '@/lib/actions/application'
-import type { Application, ApplicationListParams, ApplicationStats } from '@/types/application'
-import { formatDate } from '@/lib/utils/date'
+import { getApplications, deleteApplications } from '@/lib/actions/application'
+import { getReservationPeriods } from '@/lib/actions/accommodation'
+import type { Application, ApplicationListParams, ApplicationStatus } from '@/types/application'
+import type { ReservationPeriod } from '@/types/accommodation'
+import { formatDate, formatDateTime } from '@/lib/utils/date'
 
 interface ApplicationListProps {
-  reservationPeriodId?: string
-  onView?: (application: Application) => void
+  onDelete?: (application: Application) => void
   refreshTrigger?: number
 }
 
-type StatusFilter = 'all' | 'pending' | 'selected' | 'not_selected'
-
-export function ApplicationList({ reservationPeriodId, onView, refreshTrigger }: ApplicationListProps) {
+export function ApplicationList({ onDelete, refreshTrigger }: ApplicationListProps) {
   const [applications, setApplications] = useState<Application[]>([])
-  const [stats, setStats] = useState<ApplicationStats | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
-  // 검색 및 필터 상태
+  const [periods, setPeriods] = useState<ReservationPeriod[]>([])
+  const [loading, setLoading] = useState(true)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const [selectedPeriod, setSelectedPeriod] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState('')
+  const [selectedApplications, setSelectedApplications] = useState<string[]>([])
+  const [isDeletingApplications, setIsDeletingApplications] = useState(false)
 
+  const limit = 20
+
+  // 데이터 로드
   const loadApplications = async () => {
     try {
-      setIsLoading(true)
-      setError(null)
+      setLoading(true)
 
       const params: ApplicationListParams = {
-        page: currentPage,
-        limit: 20,
-        search: search.trim() || undefined,
-        reservation_period_id: reservationPeriodId,
-        status: statusFilter === 'all' ? undefined : statusFilter,
+        page,
+        limit,
+        search: search || undefined,
+        reservation_period_id: selectedPeriod || undefined,
+        status: (selectedStatus as ApplicationStatus) || undefined,
         include_employee: true,
         include_period: true
       }
 
       const result = await getApplications(params)
       setApplications(result.applications)
-      setTotalPages(result.totalPages)
-
-      // 통계 정보도 함께 로드
-      if (reservationPeriodId) {
-        const statsResult = await getApplicationStats(reservationPeriodId)
-        setStats(statsResult)
-      }
-    } catch (err) {
-      console.error('신청 목록 로드 실패:', err)
-      setError(err instanceof Error ? err.message : '신청 목록을 불러오는데 실패했습니다.')
+      setTotal(result.total)
+    } catch (error) {
+      console.error('신청 목록 로드 실패:', error)
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
-  // 검색 및 필터 변경 시 첫 페이지로 리셋
-  const handleSearchChange = (value: string) => {
-    setSearch(value)
-    setCurrentPage(1)
+  // 예약 기간 목록 로드
+  const loadPeriods = async () => {
+    try {
+      const result = await getReservationPeriods({
+        include_accommodation: true,
+        limit: 100
+      })
+      setPeriods(result.periods)
+    } catch (error) {
+      console.error('예약 기간 목록 로드 실패:', error)
+    }
   }
 
-  const handleStatusFilterChange = (status: StatusFilter) => {
-    setStatusFilter(status)
-    setCurrentPage(1)
-  }
-
-  const handleRefresh = () => {
+  // 검색 핸들러
+  const handleSearch = () => {
+    setPage(1)
     loadApplications()
   }
 
-  // 상태별 배지 스타일
-  const getStatusBadge = (status: Application['status']) => {
-    const styles = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      selected: 'bg-green-100 text-green-800',
-      not_selected: 'bg-gray-100 text-gray-800'
-    }
-    
-    const labels = {
-      pending: '대기중',
-      selected: '당첨',
-      not_selected: '미당첨'
-    }
+  // 필터 초기화
+  const resetFilters = () => {
+    setSearch('')
+    setSelectedPeriod('')
+    setSelectedStatus('')
+    setPage(1)
+  }
 
-    return (
-      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${styles[status]}`}>
-        {labels[status]}
-      </span>
+  // 신청 선택/해제
+  const handleApplicationSelect = (applicationId: string) => {
+    setSelectedApplications(prev =>
+      prev.includes(applicationId)
+        ? prev.filter(id => id !== applicationId)
+        : [...prev, applicationId]
     )
   }
 
+  // 전체 선택/해제
+  const handleSelectAll = () => {
+    if (selectedApplications.length === applications.length) {
+      setSelectedApplications([])
+    } else {
+      setSelectedApplications(applications.map(app => app.id))
+    }
+  }
+
+  // 선택된 신청 삭제
+  const handleDeleteSelected = async () => {
+    if (selectedApplications.length === 0) {
+      alert('삭제할 신청을 선택해주세요.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `선택된 ${selectedApplications.length}개의 신청을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      setIsDeletingApplications(true)
+
+      await deleteApplications(selectedApplications)
+      await loadApplications() // 목록 새로고침
+      setSelectedApplications([]) // 선택 초기화
+
+      alert('선택된 신청이 삭제되었습니다.')
+    } catch (err) {
+      console.error('신청 삭제 실패:', err)
+      alert(err instanceof Error ? err.message : '신청 삭제 중 오류가 발생했습니다.')
+    } finally {
+      setIsDeletingApplications(false)
+    }
+  }
+
+  // 신청 상태 라벨
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return { label: '대기중', color: 'bg-blue-100 text-blue-800' }
+      case 'selected':
+        return { label: '당첨', color: 'bg-green-100 text-green-800' }
+      case 'not_selected':
+        return { label: '미당첨', color: 'bg-gray-100 text-gray-800' }
+      default:
+        return { label: '알 수 없음', color: 'bg-gray-100 text-gray-800' }
+    }
+  }
+
+  // 효과
   useEffect(() => {
     loadApplications()
-  }, [currentPage, search, statusFilter, reservationPeriodId, refreshTrigger])
+  }, [page, selectedPeriod, selectedStatus])
 
-  if (error) {
-    return (
-      <Card>
-        <div className="p-6 text-center text-red-600">
-          <p className="mb-4">{error}</p>
-          <Button onClick={handleRefresh} variant="outline">
-            다시 시도
-          </Button>
-        </div>
-      </Card>
-    )
-  }
+  useEffect(() => {
+    loadPeriods()
+  }, [])
+
+  useEffect(() => {
+    if (refreshTrigger) {
+      loadApplications()
+    }
+  }, [refreshTrigger])
+
+  const totalPages = Math.ceil(total / limit)
 
   return (
     <div className="space-y-6">
-      {/* 통계 카드 */}
-      {stats && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <div className="p-4">
-              <div className="text-sm text-gray-600">전체 신청</div>
-              <div className="text-2xl font-bold text-blue-600">{stats.total}건</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="p-4">
-              <div className="text-sm text-gray-600">대기중</div>
-              <div className="text-2xl font-bold text-yellow-600">{stats.pending}건</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="p-4">
-              <div className="text-sm text-gray-600">당첨</div>
-              <div className="text-2xl font-bold text-green-600">{stats.selected}건</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="p-4">
-              <div className="text-sm text-gray-600">미당첨</div>
-              <div className="text-2xl font-bold text-gray-600">{stats.not_selected}건</div>
-            </div>
-          </Card>
+      {/* 헤더 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FileText className="h-6 w-6 text-blue-600" />
+          <h2 className="text-xl font-semibold text-gray-900">
+            신청자 목록 ({total}건)
+          </h2>
         </div>
-      )}
 
+        {/* 선택 삭제 버튼 */}
+        {selectedApplications.length > 0 && (
+          <Button
+            variant="outline"
+            onClick={handleDeleteSelected}
+            disabled={isDeletingApplications}
+            isLoading={isDeletingApplications}
+            className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            선택 삭제 ({selectedApplications.length})
+          </Button>
+        )}
+      </div>
+
+      {/* 필터 영역 */}
       <Card>
-        {/* 헤더 */}
-        <div className="border-b p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">신청 목록</h3>
-              <p className="text-sm text-gray-600">숙소 예약 신청 현황을 관리할 수 있습니다.</p>
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* 검색 */}
+            <div className="md:col-span-2">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="이름, 사번, 부서로 검색..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                <Button onClick={handleSearch} variant="outline">
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <Button
-              onClick={handleRefresh}
-              variant="outline"
-              size="sm"
-              leftIcon={<RefreshCw className="h-4 w-4" />}
-              disabled={isLoading}
-            >
-              새로고침
+
+            {/* 예약 기간 필터 */}
+            <div>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+              >
+                <option value="">전체 기간</option>
+                {periods.map(period => (
+                  <option key={period.id} value={period.id}>
+                    {period.accommodations?.name} - {formatDate(period.start_date)} ~ {formatDate(period.end_date)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 상태 필터 */}
+            <div>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+              >
+                <option value="">전체 상태</option>
+                <option value="pending">대기중</option>
+                <option value="selected">당첨</option>
+                <option value="not_selected">미당첨</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* 전체 선택 체크박스 */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={applications.length > 0 && selectedApplications.length === applications.length}
+                onChange={handleSelectAll}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                전체 선택
+              </span>
+            </label>
+
+            <Button variant="ghost" size="sm" onClick={resetFilters}>
+              <Filter className="h-4 w-4 mr-1" />
+              필터 초기화
             </Button>
           </div>
         </div>
+      </Card>
 
-        {/* 검색 및 필터 */}
-        <div className="border-b p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  placeholder="이름, 사번, 소속으로 검색..."
-                  value={search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {(['all', 'pending', 'selected', 'not_selected'] as StatusFilter[]).map((status) => {
-                const isActive = statusFilter === status
-                const labels = {
-                  all: '전체',
-                  pending: '대기중',
-                  selected: '당첨',
-                  not_selected: '미당첨'
-                }
-
-                return (
-                  <Button
-                    key={status}
-                    variant={isActive ? 'primary' : 'outline'}
-                    size="sm"
-                    onClick={() => handleStatusFilterChange(status)}
-                  >
-                    {labels[status]}
-                  </Button>
-                )
-              })}
-            </div>
+      {/* 목록 */}
+      {loading ? (
+        <Card>
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">로딩 중...</p>
           </div>
-        </div>
+        </Card>
+      ) : applications.length === 0 ? (
+        <Card>
+          <div className="p-8 text-center text-gray-500">
+            <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p>신청 내역이 없습니다.</p>
+          </div>
+        </Card>
+      ) : (
+        <>
+          {/* 카드 형태 목록 */}
+          <div className="space-y-4">
+            {applications.map((application) => {
+              const status = getStatusLabel(application.status)
+              return (
+                <Card key={application.id} className="p-6">
+                  <div className="space-y-4">
+                    {/* 헤더 */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedApplications.includes(application.id)}
+                          onChange={() => handleApplicationSelect(application.id)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
 
-        {/* 목록 */}
-        <div className="p-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <RefreshCw className="mx-auto h-8 w-8 animate-spin text-gray-400" />
-                <p className="mt-2 text-sm text-gray-600">신청 목록을 불러오는 중...</p>
-              </div>
-            </div>
-          ) : applications.length === 0 ? (
-            <div className="text-center py-12">
-              <User className="mx-auto h-12 w-12 text-gray-300" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">신청 내역이 없습니다</h3>
-              <p className="mt-2 text-sm text-gray-600">
-                {search || statusFilter !== 'all' 
-                  ? '검색 조건을 변경해보세요.' 
-                  : '아직 신청된 내역이 없습니다.'
-                }
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {applications.map((application) => (
-                <div
-                  key={application.id}
-                  className="rounded-lg border p-4 hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-medium text-gray-900">
-                          {application.employee?.name}
-                        </h4>
-                        {getStatusBadge(application.status)}
-                      </div>
-                      
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <User className="h-4 w-4" />
-                          <span>{application.employee?.employee_number}</span>
-                          <span>·</span>
-                          <span>{application.employee?.department}</span>
-                        </div>
-                        
-                        {application.reservation_period && (
-                          <div className="flex items-center gap-1">
-                            <Building className="h-4 w-4" />
-                            <span>{application.reservation_period.accommodations?.name}</span>
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>{formatDate(application.applied_at, 'datetime')}</span>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {application.employee?.name}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {application.employee?.employee_number} | {application.employee?.department}
+                          </p>
                         </div>
                       </div>
-                      
-                      {application.reservation_period && (
-                        <div className="mt-2 text-sm text-gray-600">
-                          <span>체크인: {formatDate(application.reservation_period.start_date)}</span>
-                          <span className="mx-2">~</span>
-                          <span>체크아웃: {formatDate(application.reservation_period.end_date)}</span>
-                        </div>
-                      )}
+
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
+                          {status.label}
+                        </span>
+                      </div>
                     </div>
-                    
-                    <div className="flex gap-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onView?.(application)}
-                        leftIcon={<Eye className="h-4 w-4" />}
-                      >
-                        상세
-                      </Button>
+
+                    {/* 신청 정보 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Building className="h-4 w-4 text-gray-400" />
+                          <span className="font-medium">숙소:</span>
+                          <span>{application.reservation_period?.accommodations?.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <span className="font-medium">숙박 기간:</span>
+                          <span>
+                            {application.reservation_period ?
+                              `${formatDate(application.reservation_period.start_date)} ~ ${formatDate(application.reservation_period.end_date)}`
+                              : '-'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <span className="font-medium">신청일:</span>
+                          <span className="ml-2">{formatDateTime(application.applied_at)}</span>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          ID: {application.id}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                </Card>
+              )
+            })}
+          </div>
 
           {/* 페이지네이션 */}
           {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                이전
-              </Button>
-              
-              <span className="text-sm text-gray-600">
-                {currentPage} / {totalPages}
-              </span>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-              >
-                다음
-              </Button>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-700">
+                전체 {total}건 중 {((page - 1) * limit) + 1}-{Math.min(page * limit, total)}건 표시
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  이전
+                </Button>
+                <span className="px-3 py-2 text-sm text-gray-700">
+                  {page} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  다음
+                </Button>
+              </div>
             </div>
           )}
-        </div>
-      </Card>
+        </>
+      )}
     </div>
   )
 }

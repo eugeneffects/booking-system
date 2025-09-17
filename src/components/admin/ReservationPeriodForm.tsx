@@ -228,7 +228,7 @@ export function ReservationPeriodForm({ period, accommodation, onSuccess, onCanc
               <option value="">숙소를 선택하세요</option>
               {accommodations.map(acc => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.type === 'ANANTI' ? '아난티' : acc.type === 'SONOBEL' ? '소노벨' : '기타'})
+                  {acc.name} ({acc.type === 'ANANTI' ? '아난티' : acc.type === 'RISOM' ? '리솜' : '기타'})
                 </option>
               ))}
             </select>
